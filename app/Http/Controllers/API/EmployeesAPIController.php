@@ -20,7 +20,7 @@ class EmployeesAPIController extends BaseController
      */
     public function index(Request $request)
     {
-        dd(Employees::with('duties')->get()->toArray());
+        
         // get all employees list with company, duties, positions and certificates
         $data = Employees::with(['company' => function ($query) {
                 $query->select('id','company_type_id', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
