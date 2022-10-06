@@ -41,6 +41,11 @@
         }
     },
     "autoload-dev": {
+        "files": [
+            "app/Helpers/ResponseHandler.php",
+            "app/Helpers/Constant.php",
+            "app/Helpers/UploadHelper.php"
+        ],
         "psr-4": {
             "Tests\\": "tests/"
         }

@@ -35,6 +35,7 @@ class Employees extends Model
     | FUNCTIONS
     |--------------------------------------------------------------------------
     */
+    
     public static function boot()
     {
         parent::boot();

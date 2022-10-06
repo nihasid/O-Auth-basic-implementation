@@ -1,5 +1,8 @@
 <?php
    
+/* *created by Niha Siddiqui 2022-09-02
+    * User registration controller methods
+*/
 namespace App\Http\Controllers\API;
    
 use Illuminate\Http\Request;

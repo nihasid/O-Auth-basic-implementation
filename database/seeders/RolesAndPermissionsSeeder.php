@@ -61,6 +61,7 @@ class RolesAndPermissionsSeeder extends Seeder
         //pro account is to share and access other companies data and update data.
         // standard account is for local access data with in company.
         
+        
         Role::create(['name' => $superAdmin])->givePermissionTo(Permission::all());
         Role::create(['name' => $proAdmin])->givePermissionTo([
             $addUser,

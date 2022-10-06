@@ -2,54 +2,165 @@
 
 namespace App\Models;
 
-use Backpack\CRUD\app\Models\Traits\CrudTrait;
-use Illuminate\Database\Eloquent\Model;
+use App\Traits\Uuids;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+// use Laravel\Sanctum\HasApiTokens;
+use Laravel\Passport\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
+use App\Models\Company;
+use App\Models\Roles;
+use Illuminate\Support\Facades\Auth;
+use App\Helpers\Constant;
+use DB;
 
-class Users extends Model
+class Users extends Authenticatable
 {
-    use CrudTrait;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use \Backpack\CRUD\app\Models\Traits\CrudTrait;
+    use Uuids;
 
-    /*
-    |--------------------------------------------------------------------------
-    | GLOBAL VARIABLES
-    |--------------------------------------------------------------------------
-    */
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'first_name',
+        'last_name',
+        'email',
+        'date_of_birth',
+        'password',
+        'company_id',
+        'is_active'
+    ];
 
-    protected $table = 'users';
-    // protected $primaryKey = 'id';
-    // public $timestamps = false;
-    protected $guarded = ['id'];
-    // protected $fillable = [];
-    // protected $hidden = [];
-    // protected $dates = [];
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | FUNCTIONS
-    |--------------------------------------------------------------------------
-    */
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | RELATIONS
-    |--------------------------------------------------------------------------
-    */
+    public static function boot()
+    {
+        parent::boot();
+        parent::bootUuid();
+    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SCOPES
-    |--------------------------------------------------------------------------
-    */
+    public function setPasswordAttribute($password)
+    {
+        if(!empty($password)) {
+            $this->attributes['password'] = bcrypt($password);
+        }
+    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | ACCESSORS
-    |--------------------------------------------------------------------------
-    */
+    public function company()
+    {
+        return $this->hasOne(Company::class, 'id', 'company_id');
+    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | MUTATORS
-    |--------------------------------------------------------------------------
-    */
+    static function userList($request)
+    {
+        $conditions = [];
+        $searchValue = $request->search;
+
+        //companies.company
+        $query = self::with('company', 'roles');
+
+
+        $user = Auth::user();
+        
+
+            // $query->whereHas('roles', function ($q) {
+            //     $q->whereIn('role_id', [
+            //         Constant::USER_ROLES['super-admin'],
+            //         Constant::USER_ROLES['pro-admin'],
+            //         Constant::USER_ROLES['pro-data'],
+            //         Constant::USER_ROLES['standard-admin'],
+            //         Constant::USER_ROLES['standard-data'],
+            //     ]);
+            // });
+            if(!auth()->user()->hasRole('super-admin')) {
+                // info: all users w.r.t auth company_id
+                $query->whereHas('company', function ($q) use($user) {
+                    $q->where('company_id', $user->company->id)->orWhereNull('company_id');
+                });
+            }
+            
+        
+
+        if (isset($searchValue)) {
+            $query->whereHas('userDetails', function ($q) use ($searchValue, $project_memberIds) {
+                $q->where('email', 'LIKE', '%' . $searchValue . '%')
+                    ->orWhere('full_name', 'LIKE', '%' . $searchValue . "%");
+            });
+        }
+
+            // $query->where('is_active', true);
+
+        // // exclude super admin users
+        // $excludedIds = [1];
+
+
+        if ($request->limit) {
+            $query->offset($request->offset)->limit($request->limit);
+        }
+
+        return $query->orderBy('created_at', 'DESC')->get()->toArray();
+    }
+
+    static function updateUser($data, $user) 
+    {
+        
+        $user->fill([
+            'email'         => $data['email'],
+            'is_active'     => Constant::BOOL_STR[$data['status']],
+            'company_id'    => $data['company_id'],
+            'created_by'    => Auth::id(),
+            'first_name'            => $data['first_name'],
+            'last_name'             => $data['last_name'],
+            // 'email_notification'    => (isset($data['emailNotification']) ? 1 : 0),
+        ]);
+        $user->update();
+        
+        if($data['role'] && Roles::where('name', $data['role'])->exists()) {
+            
+            // DB::table('model_has_roles')->where('model_id', $user->id)->delete();
+            dd($user->assignRole($data['role']));
+            $assign_role = $user->assignRole($data['role']);
+        }
+
+        dd($user->save());
+
+        $user->load(['userDetails', 'createdBy.userDetails', 'userRole.role' => function ($q) {
+            $q->select('id', 'name');
+        }]);
+        return $user;
+    }
+
+    static function deleteUsers($id)
+    {
+        $response = self::where('id', $id)->delete();
+        if ($response) {
+            DB::table('model_has_roles')->where('model_id', $id)->delete();
+        }
+        return $response;
+
+    }
+   
 }

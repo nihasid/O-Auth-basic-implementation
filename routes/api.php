@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\RegisterController;
 use App\Http\Controllers\API\EmployeesAPIController;
+use App\Http\Controllers\API\CompanyAPIController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,11 +24,17 @@ Route::post('login', [RegisterController::class, 'login'])->name('login');
 Route::group(['middleware' => ['auth:api'], 'role:super_admin|pro_admin'], function () {
     Route::group(['prefix' => 'admin'], function () {
 
-        Route::get('/users', [RegisterController::class, 'getAllUsers']);
         Route::get('/employees', [EmployeesAPIController::class, 'index']);
         Route::get('/employees/view/{id}', [EmployeesAPIController::class, 'show']);
         Route::post('/employees', 'EmployeesAPIController@store');
-        
+        Route::get('/companies', [CompanyAPIController::class, 'index']);
+        Route::post('/companies', [CompanyAPIController::class, 'store']);
+        Route::put('/company/{id}', [CompanyAPIController::class, 'update']);
+        Route::get('/users/all', 'UserAPIController@index');
+        Route::get('/user/{id}', 'UserAPIController@show');
+        Route::post('/user/{user}/edit', 'UserAPIController@update');
+        Route::delete('/user/{id}/delete', 'UserAPIController@destroy');
+        Route::delete('/employee/{id}/delete', 'EmployeesAPIController@destroy');
     });
 });
 
