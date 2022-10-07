@@ -19,7 +19,6 @@ class EmployeesCertificates extends Model
         'certificate_created_at',
         'certificate_expires_at'
     ];
-    
 
     public static function boot()
     {

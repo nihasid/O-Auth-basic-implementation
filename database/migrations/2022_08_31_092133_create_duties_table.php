@@ -20,6 +20,7 @@ return new class extends Migration
                 $table->integer('duty_type_group');
                 $table->string('duty_type_group_name')->nullable();
                 $table->string('duty_group_detail')->nullable();
+                $table->string('duty_group_slug', 255)->nullable();
                 $table->boolean('status')->default(0);
                 $table->timestamps();
             });

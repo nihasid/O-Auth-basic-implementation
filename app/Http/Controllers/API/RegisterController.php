@@ -1,14 +1,13 @@
 <?php
    
-/* *created by Niha Siddiqui 2022-09-02
-    * User registration controller methods
-*/
 namespace App\Http\Controllers\API;
    
 use Illuminate\Http\Request;
 use App\Http\Controllers\API\BaseController as BaseController;
-use App\Models\User;
+use App\Models\Users;
+use App\Helpers\ResponseHandler;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Roles;
 use DB;
 use Validator;
    
@@ -22,29 +21,46 @@ class RegisterController extends BaseController
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required',
-            'email' => 'required|email',
-            'password' => 'required',
+            'first_name' => 'required',
+            'last_name' => 'required',
+            'email' => 'required|email|unique:users,email',
+            'date_of_birth' => 'required|date_format:Y-m-d',
+            'password' => 'required|min:6|regex:/^.*(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[\d\x])(?=.*[!$#%]).*$/',
             'c_password' => 'required|same:password',
-            'role' => 'required'
+            'role' => 'required',
+            // 'company_id' => 'required'
         ]);
-
+        
    
         if($validator->fails()){
-            return $this->sendError('Validation Error.', $validator->errors());       
+            return ResponseHandler::validationError($validator->errors());     
         }
-        DB::beginTransaction();
-   
-        $input = $request->all();
-        // $input['password'] = $input['password'];
+        try{
+            DB::beginTransaction();
+            
+            $input = $request->all();
+            $input['is_active'] = 1;
+            
+            $user = Users::create($input);
+            
+            if(Roles::where('name', $request->role)->exists()) {
+                $assign_role = $user->assignRole($request->role);
+            } else {
+                DB::rollBack();
+                return ResponseHandler::validationError(['undefined role!']);
+            }
+            
+            $success['token'] =  $user->createToken($user['id'])->accessToken;
+            $success['data'] =  $user;
+    
+            return ResponseHandler::success($success);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
+        }
         
-        $user = User::create($input);
-        $assign_role = $user->assignRole($request->role);
-        $success['token'] =  $user->createToken('MyApp')->accessToken;
-        DB::commit();
-        $success['name'] =  $user;
-   
-        return $this->sendResponse($success, 'User register successfully.');
     }
    
     /**
@@ -54,31 +70,41 @@ class RegisterController extends BaseController
      */
     public function login(Request $request)
     {
-
-    	
-        if(Auth::attempt(['email' => $request->email, 'password' => $request->password])){ 
-           
-            $user = Auth::user(); 
-            $user_data = User::with(['roles', 'company' => function( $query ){
-            		$query->select('id', 'company_name');
-            	}])->select('id', 'name', 'email', 'company_id')
-                ->where('id', auth()->id())->first();
-
-            $success['token'] =  $user->createToken('MyApp')-> accessToken; 
-            // $success['name'] =  $user->name;
-            $success['data'] = [
-            	'users' => $user_data
-            ];
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required'
+        ]);
    
-            return $this->sendResponse($success, 'User login successfully.');
-        } 
-        else{ 
-            return $this->sendError('Unauthorised.', ['error'=>'Unauthorised']);
-        } 
+        if($validator->fails()){
+            return ResponseHandler::validationError($validator->errors());     
+        }
+        $data = [];
+    	try {
+            if(Auth::attempt(['email' => $request->email, 'password' => $request->password])){ 
+                DB::beginTransaction();
+                $user = Auth::user(); 
+                $user_data = Users::with(['roles', 'company' => function( $query ){
+                        $query->select('id', 'company_name');
+                    }])->select('id', 'first_name', 'last_name', 'email', 'date_of_birth', 'company_id')
+                    ->where('id', auth()->id())->first();
+
+                $data['token'] =  $user->createToken(auth()->user()->id)-> accessToken; 
+                $data['data'] = $user_data;
+    
+                return ResponseHandler::success($data);
+            } else {
+                return ResponseHandler::validationError(['Invalid email or password!']);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
+        }
     }
 
     public function getAllUsers(Request $request) {
-        if( !$users = User::with('roles')->get()) {
+        if( !$users = Users::with('roles')->get()) {
             throw new NotFoundHttpException('Users not found');
         }
         return $users;

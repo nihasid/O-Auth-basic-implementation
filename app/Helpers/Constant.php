@@ -87,4 +87,16 @@ class Constant
 
     const TIMELINE_DEFAULT_DURATION_DAYS = 25;
     const TIMELINE_DEFAULT_OFFSET = 5;
+
+    Const EMPLOYEES_DUTIES = [
+        'fire_extinguishing' => 'fire extinguishing',
+        'first_aid' => 'first aid',
+        'special_training' => 'special training'
+    ];
+
+    Const EMPLOYEES_DUTIES_DEFAULT_EXPIRES = [
+        'fire_extinguishing' => " +3 year",
+        'first_aid' => " +2 year"
+    ];
 }
+

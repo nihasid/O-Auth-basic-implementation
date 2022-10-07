@@ -8,6 +8,8 @@ use App\Http\Controllers\API\BaseController as BaseController;
 use Illuminate\Http\Request;
 use App\Models\Company;
 use App\Models\Roles;
+use App\Helpers\UploadHelper;
+use App\Helpers\ResponseHandler;
 use Validator;
 use DB;
 
@@ -97,6 +99,18 @@ class CompanyAPIController extends BaseController
 
     public function destroy($id)
     {
+        //
+        try {
+            if(Company::whereId($id)->exists()) {
+                $company_deleted_status = Company::deleteCompany($id);
+                return ResponseHandler::success(['Company deleted successfully']);
+            } else {
+                return ResponseHandler::validationError(['Company not found']);
+            }
+            
+        } catch (\Exception $e) {
+            return ResponseHandler::serverError( $e );
+        }
 
     }
 }

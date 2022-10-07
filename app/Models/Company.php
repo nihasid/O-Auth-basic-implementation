@@ -7,6 +7,7 @@ use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Employees;
 use App\Models\User;
+use DB;
 
 class Company extends Model
 {
@@ -52,6 +53,16 @@ class Company extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'company_id');
+    }
+
+    static function deleteCompany($id)
+    {
+        $response = self::where('id', $id)->delete();
+        if ($response) {
+            DB::table('employees')->where('company_id', $id)->delete();
+        }
+        return $response;
+
     }
 
     /*

@@ -21,7 +21,7 @@ Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login'])->name('login');
 
  
-Route::group(['middleware' => ['auth:api'], 'role:super_admin|pro_admin'], function () {
+Route::group(['middleware' => ['auth:api'], 'role:super-admin|pro-admin'], function () {
     Route::group(['prefix' => 'admin'], function () {
 
         Route::get('/employees', [EmployeesAPIController::class, 'index']);
@@ -33,8 +33,10 @@ Route::group(['middleware' => ['auth:api'], 'role:super_admin|pro_admin'], funct
         Route::get('/users/all', 'UserAPIController@index');
         Route::get('/user/{id}', 'UserAPIController@show');
         Route::post('/user/{user}/edit', 'UserAPIController@update');
+        Route::post('/employee/{employee}/edit', 'EmployeesAPIController@update');
         Route::delete('/user/{id}/delete', 'UserAPIController@destroy');
         Route::delete('/employee/{id}/delete', 'EmployeesAPIController@destroy');
+        Route::delete('/company/{id}/delete', 'CompanyAPIController@destroy');
     });
 });
 

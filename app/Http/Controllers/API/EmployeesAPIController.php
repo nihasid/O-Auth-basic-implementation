@@ -5,14 +5,21 @@
 */
 namespace App\Http\Controllers\API;
 
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Controllers\API\BaseController as BaseController;
 use App\Models\Employees;
 use App\Models\EmployeesCertificates;
+use App\Helpers\ResponseHandler;
+use App\Helpers\Constant;
+use App\Helpers\UploadHelper;
 use App\Models\Company;
+use App\Models\Duties;
+use App\Models\DutiesEmployees;
 use File;
 use Validator;
 use DateTime;
+use DB;
 
 class EmployeesAPIController extends BaseController
 {
@@ -31,7 +38,7 @@ class EmployeesAPIController extends BaseController
             }, 'position' => function( $query) {
                 $query->select('id', 'position_code', 'position_category', 'position_name')->where('status', 1);
             }, 'duties' => function ( $query) {
-                $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail');
+                $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('enrolled_date_started_at', 'enrolled_date_ended_at');
             }, 'certificates' => function ( $query) {
                 $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
             }])
@@ -49,24 +56,30 @@ class EmployeesAPIController extends BaseController
      */
     public function store(Request $request)
     {
+        $uuid = Str::uuid()->toString();
         $now = new DateTime();
-        
+        $company_id = auth()->user()->company_id;
+        if (!isset($company_id) && empty($company_id)) {
+            return ResponseHandler::validationError('Company field is required.');
+        }
         // save employee w.r.t ompany, duties, positions and certificates
         $validator = Validator::make($request->all(), [
             'first_name' => 'required',
             'last_name' => 'required',
-            'email' => 'required|email',
+            'email' => 'required|email||unique:employees,email',
             'gender' => 'required',
             'date_of_birth' => 'required|date_format:Y-m-d',
-            'company_id' => 'required',
             'position_id' => 'required',
             // 'duty_id' => 'required',
             'emp_started_period' => 'date|date_format:Y-m-d|nullable',
             'emp_ended_period' => 'date|date_format:Y-m-d|nullable',
-            'certificate_expires_at' => 'required|date_format:Y-m-d',
+            'certificate_created_at' => 'date_format:Y-m-d',
+            'certificate_expires_at' => 'requires|date_format:Y-m-d',
             'enrolled_date_started' => 'date_format:Y-m-d|nullable',
             'enrolled_date_ended' => 'date_format:Y-m-d|nullable',
-            'emp_started_period' => 'date_format:Y-m-d|nullable'
+            'emp_started_period' => 'date_format:Y-m-d|nullable',
+            'duty_started_at' => 'required|date_format:Y-m-d',
+            'duty_expires_at' => 'date_format:Y-m-d'
         ]);
    
         if($validator->fails()){
@@ -74,56 +87,104 @@ class EmployeesAPIController extends BaseController
         }
       
        try {
-        
-            $emp = Employees::create($request->all());
-            if(isset($emp) && !empty($emp)) 
-            {
-                if($request->duty_id) {
-                    $employee_duties = [
-                        'employees_id' => $emp->id,
-                        'duties_id' => $request->duty_id,
-                        'status' => true,
-                        'enrolled_date_started' => (isset($request->certificate_created_at) && !empty($request->certificate_created_at))?$request->certificate_created_at:$now->format('Y-m-d'),
-                        'enrolled_date_ended' => (isset($request->certificate_expires_at) && !empty($request->certificate_expires_at))?$request->certificate_expires_at:'',
-                    ];
 
+            DB::beginTransaction();
+            $certificate_created_at= (!empty($request->certificate_created_at)?$request->certificate_created_at:$now->format('Y-m-d'));
+            $certificate_expires_at = (!empty($request->certificate_expires_at)?$request->certificate_expires_at:(date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
+
+            if(!Duties::where('id', $request->duty_id)->exists()) { 
+                return ResponseHandler::validationError(['undefined employee duty!']);
+            }
+            $duty_expires_at = (isset($request->duty_expires_at)?$request->duty_expires_at:'');
+
+
+            $employee_data = Employees::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'gender' => $request->gender,
+                'date_of_birth' => $request->date_of_birth,
+                'company_id' => $company_id,
+                'position_id'=> $request->position_id,
+                'is_active' => ($request->is_active)? $request->is_active : true
+            ]);
+
+            if(isset($request->duty_id) && !empty($request->duty_id) && empty($request->duty_ended_at)) {
+                if($is_duty_exists = Duties::whereId($request->duty_id)->exists()) {
+                    $duty_slug = Duties::whereId($request->duty_id)->pluck('duty_group_slug');
+                    
+                    if( array_key_exists( $duty_slug[0], Constant::EMPLOYEES_DUTIES)) {
+                        if($duty_slug != 'special_training'){
+                            $duty_expires_at = (date('Y-m-d', strtotime($certificate_created_at . CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]])));
+                        } else {
+                            DB::rollBack();
+                            return ResponseHandler::validationError(['Duty expiry date is required for'. CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]]]);
+                        }
+                    } else {
+                        DB::rollBack();
+                        return ResponseHandler::validationError(['Duty expiry date is required for'. CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]]]);
+                    }
+                    
+                } else {
+                    DB::rollBack();
+                    return ResponseHandler::validationError(['Duty not found']);
                 }
-               
-                if($emp->id && !empty($emp->id)) {
-                    if(!empty($request->file('certificate'))) {
+            }
+
+            $duties_employees = DutiesEmployees::create([
+                'duties_id' => $request->duty_id,
+                'employees_id' => $employee_data->id,
+                // 'duty_type_group' => CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]],
+                'enrolled_date_started_at' => $request->duty_started_at,
+                'enrolled_date_ended_at' => $duty_expires_at
+            ]);
+
+
+            // dd($employee_data->duties()->sync([
+            //     // 'id' => $uuid,
+            //     'duties_id' => $request->duty_id,
+            //     'employees_id' => $employee_data->id,
+            //     'enrolled_date_started_at' => $request->duty_started_at,
+            //     'enrolled_date_ended_at' => $duty_expires_at
+            // ]));
+            
+                
+                
+            if($employee_data->id && !empty($employee_data->id)) {
+                if(!empty($request->file('certificate'))) {
                     $fileName = time() . '.'. $request->file('certificate')->extension();  
                     $type = $request->file('certificate')->getClientMimeType();
                     $size = $request->file('certificate')->getSize();
-                    $request->file('certificate')->move(public_path('certificate'), $fileName);
-                    $url = $fileName;
-                    $request->certificate = $url;
+                    $request->certificate  = UploadHelper::UploadFile($request->file('certificate'), 'employees_certificates');
+                    // $request->file('certificate')->move(public_path('certificate'), $fileName);   
                 }
-    
-                    $employee_certificate = [
-                        'employees_id' => $emp->id,
-                        'certificate' => $fileName,
-                        'status' => true,
-                        'certificate_created_at' => (isset($request->certificate_created_at) && !empty($request->certificate_created_at))?$request->certificate_created_at:$now->format('Y-m-d'),
-                        'certificate_expires_at' => (isset($request->certificate_expires_at) && !empty($request->certificate_expires_at))?$request->certificate_expires_at:'',
-                    ];
-                    EmployeesCertificates::create($employee_certificate);
-                }
-                $data = Employees::with('company', 'position', 'duties', 'certificates')->first();
-                return response()->json([
-                    'message'=>'Employee has been added successfully',
-                    'data' => $data 
-                ], 200);
-            } else {
-                return response()->json([
-                    'message' => 'error occured while adding an employee'
-                ], 500);
+        
+                $employee_certificate = [
+                    'employees_id' => $employee_data->id,
+                    'certificate' => $request->certificate,
+                    'status' => true,
+                    'certificate_created_at' => $certificate_created_at,
+                    'certificate_expires_at' => $certificate_expires_at
+                ];
+                EmployeesCertificates::create($employee_certificate);
             }
             
-           
-          
-       } catch(Exception $e) {
-            dd($e->getMessage());
-       }
+            $data = Employees::with(['company', 'position', 'duties' => function ( $query) {
+                        $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('enrolled_date_started_at', 'enrolled_date_ended_at');
+                    }, 'certificates' => function ( $query) {
+                        $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
+                    }])->find($employee_data->id);
+                    return response()->json([
+                        'message'=>'Employee has been added successfully',
+                        'data' => $data 
+                    ], 200);
+            
+       } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
+        }
         
     }
 
@@ -153,9 +214,100 @@ class EmployeesAPIController extends BaseController
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Employees $employee)
     {
         //
+        $now = new DateTime();
+        if (Employees::where('email', '=', $request->email)->where('id', '!=', $employee->id)->exists()) {
+            return ResponseHandler::validationError(['Employee with this email address already exists.']);
+        }
+
+        $company_id = auth()->user()->company_id;
+        if (!isset($company_id) && empty($company_id)) {
+            return ResponseHandler::validationError('Company field is required.');
+        }
+        
+       try {
+
+            DB::beginTransaction();
+
+            $certificate_created_at= (!empty($request->certificate_created_at)?$request->certificate_created_at:$now->format('Y-m-d'));
+            $certificate_expires_at = (!empty($request->certificate_expires_at)?$request->certificate_expires_at:(date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
+
+            if(!Duties::where('id', $request->duty_id)->exists()) { 
+                return ResponseHandler::validationError(['Undefined employee duty!']);
+            }
+// dd($request->duty_started_at);
+// dd($request->duty_expires_at);
+            $duty_expires_at = (isset($request->duty_expires_at)?$request->duty_expires_at:'');
+            $employee_data = $employee->duties()->update(['enrolled_date_started_at' => $request->duty_started_at,
+            'enrolled_date_ended_at' => $duty_expires_at]);
+dd($employee_data);
+            if(isset($request->duty_id) && !empty($request->duty_id) && empty($request->duty_expires_at)) {
+                if($is_duty_exists = Duties::whereId($request->duty_id)->exists()) {
+                    $duty_slug = Duties::whereId($request->duty_id)->pluck('duty_group_slug');
+                    
+                    if( array_key_exists( $duty_slug[0], Constant::EMPLOYEES_DUTIES)) {
+                        if($duty_slug != 'special_training'){
+                            $duty_expires_at = (date('Y-m-d', strtotime($certificate_created_at . CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]])));
+                        } else {
+                            DB::rollBack();
+                            return ResponseHandler::validationError(['Duty expiry date is required for'. CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]]]);
+                        }
+                    } else {
+                        DB::rollBack();
+                        return ResponseHandler::validationError(['Duty expiry date is required for'. CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]]]);
+                    }
+                    
+                } else {
+                    DB::rollBack();
+                    return ResponseHandler::validationError(['Duty not found']);
+                }
+            }
+
+            $duties_employees = DutiesEmployees::create([
+                'duties_id' => $request->duty_id,
+                'employees_id' => $employee_data->id,
+                // 'duty_type_group' => CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]],
+                'enrolled_date_started_at' => $request->duty_started_at,
+                'enrolled_date_ended_at' => $duty_expires_at
+            ]);      
+                     
+            if($employee_data->id && !empty($employee_data->id)) {
+                if(!empty($request->file('certificate'))) {
+                    $fileName = time() . '.'. $request->file('certificate')->extension();  
+                    $type = $request->file('certificate')->getClientMimeType();
+                    $size = $request->file('certificate')->getSize();
+                    $request->certificate  = UploadHelper::UploadFile($request->file('certificate'), 'employees_certificates');
+                    // $request->file('certificate')->move(public_path('certificate'), $fileName);   
+                }
+        
+                $employee_certificate = [
+                    'employees_id' => $employee_data->id,
+                    'certificate' => $request->certificate,
+                    'status' => true,
+                    'certificate_created_at' => $certificate_created_at,
+                    'certificate_expires_at' => $certificate_expires_at
+                ];
+                EmployeesCertificates::create($employee_certificate);
+            }
+            
+            $data = Employees::with(['company', 'position', 'duties' => function ( $query) {
+                        $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('enrolled_date_started_at', 'enrolled_date_ended_at');
+                    }, 'certificates' => function ( $query) {
+                        $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
+                    }])->find($employee_data->id);
+                    return response()->json([
+                        'message'=>'Employee has been added successfully',
+                        'data' => $data 
+                    ], 200);
+            
+       } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
+        }
     }
 
     /**
@@ -167,5 +319,16 @@ class EmployeesAPIController extends BaseController
     public function destroy($id)
     {
         //
+        try {
+            if(Employees::whereId($id)->exists()) {
+                $employee_deleted__status = Employees::deleteEmployee($id);
+                return ResponseHandler::success(['Employee deleted successfully']);
+            } else {
+                return ResponseHandler::validationError(['Employee not found']);
+            }
+            
+        } catch (\Exception $e) {
+            return ResponseHandler::serverError( $e );
+        }
     }
 }

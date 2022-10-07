@@ -35,7 +35,6 @@ class Employees extends Model
     | FUNCTIONS
     |--------------------------------------------------------------------------
     */
-    
     public static function boot()
     {
         parent::boot();
@@ -66,6 +65,15 @@ class Employees extends Model
     public function certificates()
     {
         return $this->hasMany(EmployeesCertificates::class);
+    }
+
+
+    static function deleteEmployee($id)
+    {
+        
+        $response = self::where('id', $id)->delete();
+        return $response;
+
     }
 
     /*

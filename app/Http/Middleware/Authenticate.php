@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
+use App\Helpers\ResponseHandler;
 
 class Authenticate extends Middleware
 {
@@ -22,10 +23,12 @@ class Authenticate extends Middleware
     // Add new method 
     protected function unauthenticated($request, array $guards)
     {
-        abort(response()->json(
+        abort( ResponseHandler::authorizationError('Token mismatched or expired. Please check token!'));
+        /* abort(response()->json(
             [
-                'api_status' => '401',
+                'api_status' => '403',
                 'message' => 'UnAuthenticated',
-            ], 401));
+            ], 403));
+            */
     }
 }
