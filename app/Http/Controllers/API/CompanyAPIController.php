@@ -86,7 +86,9 @@ class CompanyAPIController extends BaseController
 
     public function update(Request $request, $id)
     {
-
+        if (Auth()->user()->company_id != $id) {
+            return ResponseHandler::validationError(['Permission denied']);
+        }
         // save employee w.r.t ompany, duties, positions and certificates
         $validator = Validator::make($request->all(), [
             'company_id' => 'required',
@@ -97,23 +99,19 @@ class CompanyAPIController extends BaseController
             'company_ended_at' => 'date|date_format:Y-m-d|nullable'
         ]);
 
-
-
-        if($validator->fails()){
-            return $this->sendError('Validation Error.', $validator->errors());       
+        if ($validator->fails()) {
+            return $this->sendError('Validation Error.', $validator->errors());
         }
 
         $input = $request->all();
-        try{
+        try {
             $result = Company::whereId($id)->update(array_except($input, ['company_id']));
-            if($result) {
+            if ($result) {
                 return response()->json(['message' => 'company updated succesfully.', 'data' => $result], 200);
             }
-
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             return ResponseHandler::serverError($e);
         }
-
     }
 
     public function destroy($id)
