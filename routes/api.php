@@ -32,7 +32,7 @@ Route::group(['middleware' => ['auth:api'], 'role:super-admin|pro-admin'], funct
         Route::put('/company/{id}', [CompanyAPIController::class, 'update']);
         Route::get('/users/all', 'UserAPIController@index');
         Route::get('/user/{id}', 'UserAPIController@show');
-        Route::post('/user/{user}/edit', 'UserAPIController@update');
+        Route::put('/user/{id}/edit', 'UserAPIController@update');
         Route::post('/employee/{employee}/edit', 'EmployeesAPIController@update');
         Route::delete('/user/{id}/delete', 'UserAPIController@destroy');
         Route::delete('/employee/{id}/delete', 'EmployeesAPIController@destroy');

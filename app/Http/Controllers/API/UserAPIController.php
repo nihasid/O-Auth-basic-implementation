@@ -30,7 +30,6 @@ class UserAPIController extends BaseController
         } catch (Exception $e) {
             return ResponseHandler::serverError($e);
         }
-        
     }
 
     /**
@@ -39,7 +38,7 @@ class UserAPIController extends BaseController
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-  
+
 
     /**
      * Display the specified resource.
@@ -50,17 +49,15 @@ class UserAPIController extends BaseController
     public function show($id)
     {
         //
-        if(empty($id) || $id == '' || $id == null)
-        {
-            return ResponseHandler::validationError(['employee id is required.']);       
+        if (empty($id) || $id == '' || $id == null) {
+            return ResponseHandler::validationError(['employee id is required.']);
         }
 
         $data = Users::with('company', 'roles')->find($id);
-        if(empty($data)) {
+        if (empty($data)) {
             return ResponseHandler::validationError(['User with this id not found.']);
         }
         return ResponseHandler::success($data);
-        
     }
 
     /**
@@ -71,11 +68,11 @@ class UserAPIController extends BaseController
      * @return \Illuminate\Http\Response
      */
 
-    public function update(Request $request, Users $user)
+    public function update(Request $request, $id)
     {
-      
+        $user = Users::find($id);
         try {
-            if (Users::where('email', '=', $request->email)->where('id', '!=', $user->id)->exists()) {
+            if (Users::where('email', '=', $request->email)->where('id', '!=', $id)->exists()) {
                 return ResponseHandler::validationError(['User with this email address already exists.']);
             }
 
@@ -83,8 +80,8 @@ class UserAPIController extends BaseController
             $response = Users::updateUser($input, $user);
             return ResponseHandler::success($response, 'updated successfully');
         } catch (\Exception $e) {
-            
-            return ResponseHandler::serverError( $e );
+
+            return ResponseHandler::serverError($e);
         }
     }
 
@@ -98,15 +95,14 @@ class UserAPIController extends BaseController
     {
         //
         try {
-            if(Users::whereId($id)->exists()) {
+            if (Users::whereId($id)->exists()) {
                 $user_status = Users::deleteUsers($id);
                 return ResponseHandler::success(['User deleted successfully']);
             } else {
                 return ResponseHandler::validationError(['User not found']);
             }
-            
         } catch (\Exception $e) {
-            return ResponseHandler::serverError( $e );
+            return ResponseHandler::serverError($e);
         }
     }
 }

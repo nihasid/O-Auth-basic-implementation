@@ -64,7 +64,7 @@ class Users extends Authenticatable
 
     public function setPasswordAttribute($password)
     {
-        if(!empty($password)) {
+        if (!empty($password)) {
             $this->attributes['password'] = bcrypt($password);
         }
     }
@@ -84,25 +84,25 @@ class Users extends Authenticatable
 
 
         $user = Auth::user();
-        
 
-            // $query->whereHas('roles', function ($q) {
-            //     $q->whereIn('role_id', [
-            //         Constant::USER_ROLES['super-admin'],
-            //         Constant::USER_ROLES['pro-admin'],
-            //         Constant::USER_ROLES['pro-data'],
-            //         Constant::USER_ROLES['standard-admin'],
-            //         Constant::USER_ROLES['standard-data'],
-            //     ]);
-            // });
-            if(!auth()->user()->hasRole('super-admin')) {
-                // info: all users w.r.t auth company_id
-                $query->whereHas('company', function ($q) use($user) {
-                    $q->where('company_id', $user->company->id)->orWhereNull('company_id');
-                });
-            }
-            
-        
+
+        // $query->whereHas('roles', function ($q) {
+        //     $q->whereIn('role_id', [
+        //         Constant::USER_ROLES['super-admin'],
+        //         Constant::USER_ROLES['pro-admin'],
+        //         Constant::USER_ROLES['pro-data'],
+        //         Constant::USER_ROLES['standard-admin'],
+        //         Constant::USER_ROLES['standard-data'],
+        //     ]);
+        // });
+        if (!auth()->user()->hasRole('super-admin')) {
+            // info: all users w.r.t auth company_id
+            $query->whereHas('company', function ($q) use ($user) {
+                $q->where('company_id', $user->company->id)->orWhereNull('company_id');
+            });
+        }
+
+
 
         if (isset($searchValue)) {
             $query->whereHas('userDetails', function ($q) use ($searchValue, $project_memberIds) {
@@ -111,7 +111,7 @@ class Users extends Authenticatable
             });
         }
 
-            // $query->where('is_active', true);
+        // $query->where('is_active', true);
 
         // // exclude super admin users
         // $excludedIds = [1];
@@ -124,9 +124,8 @@ class Users extends Authenticatable
         return $query->orderBy('created_at', 'DESC')->get()->toArray();
     }
 
-    static function updateUser($data, $user) 
+    static function updateUser($data, $user)
     {
-        
         $user->fill([
             'email'         => $data['email'],
             'is_active'     => Constant::BOOL_STR[$data['status']],
@@ -137,19 +136,18 @@ class Users extends Authenticatable
             // 'email_notification'    => (isset($data['emailNotification']) ? 1 : 0),
         ]);
         $user->update();
-        
-        if($data['role'] && Roles::where('name', $data['role'])->exists()) {
-            
-            // DB::table('model_has_roles')->where('model_id', $user->id)->delete();
-            dd($user->assignRole($data['role']));
+
+        if ($data['role'] && Roles::where('name', $data['role'])->exists()) {
+
+            $isDeleteRole = DB::table('model_has_roles')->where('model_id', $user->id)->delete();
+            // dd($user->assignRole($data['role']));
             $assign_role = $user->assignRole($data['role']);
         }
 
-        dd($user->save());
-
-        $user->load(['userDetails', 'createdBy.userDetails', 'userRole.role' => function ($q) {
+        $user->load(['company', 'roles' => function ($q) {
             $q->select('id', 'name');
         }]);
+        
         return $user;
     }
 
@@ -160,7 +158,5 @@ class Users extends Authenticatable
             DB::table('model_has_roles')->where('model_id', $id)->delete();
         }
         return $response;
-
     }
-   
 }
