@@ -17,6 +17,8 @@ use App\Http\Controllers\API\CompanyAPIController;
 |
 */
 
+
+Route::get('/test', 'CompanyAPIController@getCompanyWithEmployeesCount');
 Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login'])->name('login');
 

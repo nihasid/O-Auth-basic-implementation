@@ -8,9 +8,11 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\API\BaseController as BaseController;
 use Illuminate\Http\Request;
 use App\Models\Company;
+use App\Models\Users;
 use App\Models\Roles;
 use App\Helpers\UploadHelper;
 use App\Helpers\ResponseHandler;
+use App\Models\DutiesEmployees;
 use Validator;
 use DB;
 
@@ -127,5 +129,25 @@ class CompanyAPIController extends BaseController
         } catch (\Exception $e) {
             return ResponseHandler::serverError($e);
         }
+    }
+/*
+    # cron job - reminder email to company's contact person 
+                - if employee not registered in company & Company employee's count > 20
+*/          
+    public function getCompanyWithEmployeesCount() {
+        $allCompanies = Company::withCount('employees')->get();
+        $companyIds = $allCompanies->where('employees_count', '>=', 10)->pluck('id')->toArray();
+        
+        $companyIdsInDuties = DutiesEmployees::where('id', '!=', '')->where('company_id', '!=', '')->pluck('company_id')->toArray();
+        
+        $companyEmployeesNotRegInDuties = array_diff($companyIds, $companyIdsInDuties);
+        dd(Users::whereIn('company_id', $companyEmployeesNotRegInDuties)->pluck('email', 'id')->toArray());
+        dd($companyEmployeesNotRegInDuties);
+        
+        // dd(Company::leftJoin('employees', 'employees.company_id', '=', 'companies.id')
+        // ->select('companies.id', 'company_type_id', 'company_name', 'company_department', 'company_started_at', 'company_ended_at', \DB::raw('COUNT(employees.id) as employees'))
+        // ->where()
+        // ->groupBy('companies.id')->whereNotNull('status')
+        // ->orderBy('companies.created_at', 'desc'));
     }
 }

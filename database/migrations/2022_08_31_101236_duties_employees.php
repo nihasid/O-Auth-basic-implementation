@@ -20,6 +20,7 @@ return new class extends Migration
                 $table->uuid('id')->primary();
                 $table->uuid('employees_id');
                 $table->uuid('duties_id');
+                $table->uuid('company_id')->nullable();
                 $table->timestamp('enrolled_date_started_at')->nullable();
                 $table->timestamp('enrolled_date_ended_at')->nullable();
                 $table->timestamps();

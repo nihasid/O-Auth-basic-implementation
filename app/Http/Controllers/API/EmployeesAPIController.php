@@ -21,6 +21,8 @@ use File;
 use Validator;
 use DateTime;
 use DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB as FacadesDB;
 
 class EmployeesAPIController extends BaseController
 {
@@ -64,7 +66,7 @@ class EmployeesAPIController extends BaseController
             return ResponseHandler::validationError('Company field is required.');
         }
         // save employee w.r.t ompany, duties, positions and certificates
-        $validator = Validator::make($request->all(), [
+        $validationRules = [
             'first_name' => 'required',
             'last_name' => 'required',
             'email' => 'required|email|unique:employees,email',
@@ -81,7 +83,15 @@ class EmployeesAPIController extends BaseController
             'emp_started_period' => 'date_format:Y-m-d|nullable',
             'duty_started_at' => 'required|date_format:Y-m-d',
             'duty_expires_at' => 'date_format:Y-m-d'
-        ]);
+        ];
+
+        if(Auth()->user()->hasRole('super-admin')) {
+            $validationRules['company_id'] = 'required';
+        }
+
+        $validator = Validator::make($request->all(), $validationRules);
+        
+   
 
         if ($validator->fails()) {
             return $this->sendError('Validation Error.', $validator->errors());
@@ -132,9 +142,9 @@ class EmployeesAPIController extends BaseController
             }
 
             $duties_employees = DutiesEmployees::create([
-                'duties_id' => $request->duty_id,
-                'employees_id' => $employee_data->id,
-                // 'duty_type_group' => CONSTANT::EMPLOYEES_DUTIES_DEFAULT_EXPIRES[$duty_slug[0]],
+                'duties_id'     => $request->duty_id,
+                'employees_id'  => $employee_data->id,
+                'company_id'    => $employee_data->company_id,
                 'enrolled_date_started_at' => $request->duty_started_at,
                 'enrolled_date_ended_at' => $duty_expires_at
             ]);
@@ -295,6 +305,7 @@ class EmployeesAPIController extends BaseController
 
             $duties_employees = DutiesEmployees::where('employees_id', $employee->id)->update([
                 'duties_id' => $request->duty_id,
+                'company_id'    => $employee->company_id,
                 'enrolled_date_started_at' => $request->duty_started_at,
                 'enrolled_date_ended_at' => $duty_expires_at
             ]);
@@ -320,7 +331,7 @@ class EmployeesAPIController extends BaseController
             }
 
             $data = Employees::with(['company', 'position', 'duties' => function ($query) {
-                $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('enrolled_date_started_at', 'enrolled_date_ended_at');
+                $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('company_id', 'enrolled_date_started_at', 'enrolled_date_ended_at');
             }, 'certificates' => function ($query) {
                 $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
             }])->find($employee->id);

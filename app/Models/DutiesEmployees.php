@@ -19,6 +19,7 @@ class DutiesEmployees extends Model
     protected $fillable = [
         'employees_id',
         'duties_id',
+        'company_id',
         'status',
         'enrolled_date_started_at',
         'enrolled_date_ended_at'
