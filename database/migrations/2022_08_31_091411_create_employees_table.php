@@ -26,6 +26,7 @@ return new class extends Migration
             $table->timestamp('emp_ended_period')->nullable();
             $table->timestamp('signature_date')->useCurrent();
             $table->boolean('is_active')->default(0);
+            $table->boolean('is_share')->default(0);
             $table->timestamps();
             $table->foreign('company_id', 'employees_company_id_foreign')->references('id')->on('companies');
             $table->foreign('position_id', 'employees_position_id_foreign')->references('id')->on('positions');

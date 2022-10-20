@@ -21,6 +21,7 @@ return new class extends Migration
             $table->timestamp('position_created_at')->nullable();
             $table->timestamp('position_ended_at')->nullable();
             $table->boolean('status')->default(0);
+            $table->boolean('is_share')->default(0);
             $table->timestamps();
         });
     }

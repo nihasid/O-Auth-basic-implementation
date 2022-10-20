@@ -22,6 +22,7 @@ return new class extends Migration
                 $table->string('duty_group_detail')->nullable();
                 $table->string('duty_group_slug', 255)->nullable();
                 $table->boolean('status')->default(0);
+                $table->boolean('is_share')->default(0);
                 $table->timestamps();
             });
         }

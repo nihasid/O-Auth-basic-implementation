@@ -40,6 +40,7 @@ class InvitationController extends Controller
         }
 
         try {
+            
 
             DB::beginTransaction();
             // $now = new DateTime();

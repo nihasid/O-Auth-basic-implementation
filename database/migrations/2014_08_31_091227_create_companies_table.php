@@ -16,17 +16,18 @@ return new class extends Migration
     {
         Schema::create('companies', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->integer('company_type_id')->unique()->nullable();
+            $table->string('business_type')->unique()->nullable();
             $table->string('company_name', 255);
             $table->string('company_department', 255)->nullable();
             $table->string('short_description', 255)->nullable();
+            $table->string('company_ceo_name', 255)->nullable();
             $table->timestamp('company_started_at')->nullable();
             $table->timestamp('company_ended_at')->nullable();
             $table->boolean('status')->default(1);
             $table->boolean('is_invite')->default(0);
             $table->boolean('is_share')->default(0);
             $table->timestamps();
-            $table->unique(['company_type_id', 'company_name', 'company_department'], 'companies_index_unique');
+            $table->unique(['business_type', 'company_name'], 'companies_index_unique');
         });
     }
 

@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use \App\Models\User;
+use \App\Models\Users;
 
 class UserSeeder extends Seeder
 {
@@ -16,19 +16,19 @@ class UserSeeder extends Seeder
     public function run()
     {
         // 
-        User::factory()->count(1)
+        Users::factory()->count(1)
                         ->create()
                         ->each(
                             function($user) {
-                                $user->assignRole('super_admin');
+                                $user->assignRole('super-admin');
                             }
                         );
 
-        User::factory()->count(2)
+        Users::factory()->count(2)
                         ->create()
                         ->each(
                             function($user) {
-                                $user->assignRole('pro_admin');
+                                $user->assignRole('pro-admin');
                             }
                         );
     }
