@@ -85,13 +85,13 @@ class EmployeesAPIController extends BaseController
             'duty_expires_at' => 'date_format:Y-m-d'
         ];
 
-        if(Auth()->user()->hasRole('super-admin')) {
+        if (Auth()->user()->hasRole('super-admin')) {
             $validationRules['company_id'] = 'required';
         }
 
         $validator = Validator::make($request->all(), $validationRules);
-        
-   
+
+
 
         if ($validator->fails()) {
             return $this->sendError('Validation Error.', $validator->errors());
@@ -212,6 +212,7 @@ class EmployeesAPIController extends BaseController
      */
     public function update(Request $request, Employees $employee)
     {
+
         //
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required',
@@ -230,7 +231,8 @@ class EmployeesAPIController extends BaseController
             'enrolled_date_ended' => 'date_format:Y-m-d|nullable',
             'emp_started_period' => 'date_format:Y-m-d|nullable',
             'duty_started_at' => 'required|date_format:Y-m-d',
-            'duty_expires_at' => 'date_format:Y-m-d'
+            'duty_expires_at' => 'date_format:Y-m-d',
+            // 'certificates' => 'mimes:pdf'
         ]);
 
         if ($validator->fails()) {
@@ -311,23 +313,35 @@ class EmployeesAPIController extends BaseController
             ]);
 
 
-            if (isset($employee->id) && !empty($employee->id) && !empty($request->file('certificate'))) {
+            if (isset($employee->id) && !empty($employee->id) && !empty($request->file('certificates'))) {
 
-                $fileName = time() . '.' . $request->file('certificate')->extension();
-                $type = $request->file('certificate')->getClientMimeType();
-                $size = $request->file('certificate')->getSize();
-                $request->certificate  = UploadHelper::UploadFile($request->file('certificate'), 'employees_certificates');
+                $allowedfileExtension = ['pdf'];
+                $files = $request->file('certificates');
+                $errors = [];
 
 
-                $employee_certificate = [
-                    'employees_id' => $employee->id,
-                    'certificate' => $request->certificate,
-                    'status' => true,
-                    'certificate_created_at' => $certificate_created_at,
-                    'certificate_expires_at' => $certificate_expires_at
-                ];
+                if ($allowedfileExtension) {
+                    foreach ($request->file('certificates') as $mediaFiles) {
+                        $fileName = time() . '.' . $mediaFiles->extension();
+                        $type = $mediaFiles->getClientMimeType();
+                        $size = $mediaFiles->getSize();
+                        $request->certificate  = UploadHelper::UploadFile($mediaFiles, 'employees_certificates');
 
-                EmployeesCertificates::create($employee_certificate);
+
+                        $employee_certificate = [
+                            'employees_id' => $employee->id,
+                            'certificate' => $request->certificate,
+                            'status' => true,
+                            'certificate_created_at' => $certificate_created_at,
+                            'certificate_expires_at' => $certificate_expires_at
+                        ];
+
+                        EmployeesCertificates::create($employee_certificate);
+                    }
+                }  else {
+                    DB::rollBack();
+                    return ResponseHandler::validationError(['invalid_file_format']);
+                }
             }
 
             $data = Employees::with(['company', 'position', 'duties' => function ($query) {
