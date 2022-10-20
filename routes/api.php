@@ -19,6 +19,9 @@ use App\Http\Controllers\API\CompanyAPIController;
 
 
 Route::get('/test', 'CompanyAPIController@getCompanyWithEmployeesCount');
+Route::get('/invitations', 'InvitationController@getAllInvites');
+
+
 Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login'])->name('login');
 
@@ -39,6 +42,7 @@ Route::group(['middleware' => ['auth:api'], 'role:super-admin|pro-admin'], funct
         Route::delete('/user/{id}/delete', 'UserAPIController@destroy');
         Route::delete('/employee/{id}/delete', 'EmployeesAPIController@destroy');
         Route::delete('/company/{id}/delete', 'CompanyAPIController@destroy');
+        Route::post('/invitation/send', 'InvitationController@sendInvites');
     });
 });
 

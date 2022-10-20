@@ -18,21 +18,6 @@ class Constant
         'serverError'           => 500,
     ];
 
-    const PROJECT_STAGES = [
-        'site_survey'           => 'Site survey',
-        'schematics_drawing'    => 'Schematics drawing',
-        'technical_drawings'    => 'Technical drawings',
-        'material_procurement'  => 'Mall approval',
-        'carpentry'             => 'Demolition',
-        'painting'              => 'Ceiling',
-        'assembly'              => 'Floor',
-        'quality_check'         => 'Infra & HVAC',
-        'packaging'             => 'Store front',
-        'delivery'              => 'Fixture delivery',
-        'installation'          => 'Fixture installation',
-        'completion'            => 'Snagging report',
-    ];
-
     const DATE_TIME_FORMAT = 'Y-m-d H:i:s';
     const DATE_FORMAT = 'Y-m-d';
     const DATE_DISPLAY = 'd M Y';
@@ -75,8 +60,6 @@ class Constant
       '0'       => false,
     ];
 
-    const DEFAULT_DB_RECORDS_LIMIT = 10;
-
     const ACL_PERMISSIONS = [
         'POST'      => ['create', 'update'],
         'GET'       => ['read'],
@@ -98,5 +81,17 @@ class Constant
         'fire_extinguishing' => " +3 year",
         'first_aid' => " +2 year"
     ];
+    
+    const EMAIL_SENDER = [
+        'notification' => 'remind@fasi.app',
+        'invitation' => 'invite@fasi.app'
+    ];
+
+    const EMAIL_SUBJECT = [
+        'notification' => 'Reminder to register employee in duty',
+        'invitation' => 'Invitation email'
+    ];
+    
+
 }
 

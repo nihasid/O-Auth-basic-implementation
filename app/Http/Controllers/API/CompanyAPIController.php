@@ -5,16 +5,17 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Helpers\Constant;
 use App\Http\Controllers\API\BaseController as BaseController;
 use Illuminate\Http\Request;
 use App\Models\Company;
 use App\Models\Users;
-use App\Models\Roles;
-use App\Helpers\UploadHelper;
 use App\Helpers\ResponseHandler;
 use App\Models\DutiesEmployees;
 use Validator;
-use DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\WelcomeMail;
+use Illuminate\Http\Response;
 
 class CompanyAPIController extends BaseController
 {
@@ -130,24 +131,62 @@ class CompanyAPIController extends BaseController
             return ResponseHandler::serverError($e);
         }
     }
-/*
+    /*
     # cron job - reminder email to company's contact person 
                 - if employee not registered in company & Company employee's count > 20
-*/          
-    public function getCompanyWithEmployeesCount() {
-        $allCompanies = Company::withCount('employees')->get();
-        $companyIds = $allCompanies->where('employees_count', '>=', 10)->pluck('id')->toArray();
-        
-        $companyIdsInDuties = DutiesEmployees::where('id', '!=', '')->where('company_id', '!=', '')->pluck('company_id')->toArray();
-        
-        $companyEmployeesNotRegInDuties = array_diff($companyIds, $companyIdsInDuties);
-        dd(Users::whereIn('company_id', $companyEmployeesNotRegInDuties)->pluck('email', 'id')->toArray());
-        dd($companyEmployeesNotRegInDuties);
-        
-        // dd(Company::leftJoin('employees', 'employees.company_id', '=', 'companies.id')
-        // ->select('companies.id', 'company_type_id', 'company_name', 'company_department', 'company_started_at', 'company_ended_at', \DB::raw('COUNT(employees.id) as employees'))
-        // ->where()
-        // ->groupBy('companies.id')->whereNotNull('status')
-        // ->orderBy('companies.created_at', 'desc'));
+*/
+    public function getCompanyWithEmployeesCount()
+    {
+        $sentEmailPusher = [];
+        $senderEmail = 'notification';
+        $allCompanies = Company::withCount('employees')->where('status', true)->get();
+        if ($allCompanies) {
+            $companyIds = $allCompanies->where('employees_count', '>=', 10)->pluck('id')->toArray();
+            if ($companyIds && count($companyIds) > 0) {
+                $companyIdsInDuties = DutiesEmployees::where('id', '!=', '')->where('company_id', '!=', '')->whereIn('company_id', $companyIds)->pluck('company_id')->toArray();
+                $companyIdsInDuties = array_diff($companyIds, $companyIdsInDuties);
+                if (isset($companyIdsInDuties) && count($companyIdsInDuties) > 0) {
+                    $userEmailToSend = Users::whereIn('company_id', $companyIdsInDuties)->pluck('email', 'company_id')->toArray();
+                   
+                    if (is_array($userEmailToSend) && count($userEmailToSend) > 0) {
+                        foreach ($userEmailToSend as $companyId => $userEmail) {
+                            if ($this->mailSend($userEmail, $senderEmail)) {
+                                array_push($sentEmailPusher, $companyId);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if(isset($companyIdsInDuties) && count($companyIdsInDuties) > 0 && empty( array_diff($sentEmailPusher, $companyIdsInDuties))) {
+            exit('Email sent to All companies whose employees are above 20!');
+        }
+
+        if (isset($companyIdsInDuties) && count($companyIdsInDuties) > 0 && !empty($emailNotSentToCompanies = array_diff($sentEmailPusher, $companyIdsInDuties))) {
+            // dd($emailNotSentToCompanies);
+            
+            exit('Email sent to All companies except ' . json_encode($emailNotSentToCompanies));
+        } 
+
+        exit('No company found !');
+
+    }
+
+    public function mailSend($email, $senderEmail)
+    {
+        // $email = 'mail@hotmail.com';
+        $subject = Constant::EMAIL_SUBJECT['notification'];
+        $mailInfo = [
+            'title' => Constant::EMAIL_SUBJECT['notification'],
+            'email_message' => 'There are over 20 employees in your company, and there is no registration for any duty.',
+            'url' => 'https://www.remotestack.io'
+        ];
+
+        Mail::to($email)->send(new WelcomeMail($mailInfo, $senderEmail, $subject));
+
+        return response()->json([
+            'message' => 'Mail has sent.'
+        ], Response::HTTP_OK);
     }
 }
