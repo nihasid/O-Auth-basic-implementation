@@ -24,12 +24,12 @@ class UserSeeder extends Seeder
                             }
                         );
 
-        Users::factory()->count(2)
-                        ->create()
-                        ->each(
-                            function($user) {
-                                $user->assignRole('pro-admin');
-                            }
-                        );
+        // Users::factory()->count(2)
+        //                 ->create()
+        //                 ->each(
+        //                     function($user) {
+        //                         $user->assignRole('pro-admin');
+        //                     }
+        //                 );
     }
 }

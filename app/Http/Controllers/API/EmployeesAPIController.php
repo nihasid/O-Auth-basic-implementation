@@ -45,7 +45,7 @@ class EmployeesAPIController extends BaseController
         }, 'certificates' => function ($query) {
             $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
         }])
-            ->where('Employees.is_active', 1)
+            ->where('employees.is_active', 1)
             ->orderBy('created_at', 'desc')
             ->paginate($request->limit);
         return response()->json(['data' => $data], 200);
@@ -149,14 +149,14 @@ class EmployeesAPIController extends BaseController
                 'enrolled_date_ended_at' => $duty_expires_at
             ]);
 
-            if ($employee_data->id && !empty($employee_data->id)) {
-                if (!empty($request->file('certificate'))) {
+            if ($employee_data->id && !empty($employee_data->id) && !empty($request->file('certificate'))) {
+                
                     $fileName = time() . '.' . $request->file('certificate')->extension();
                     $type = $request->file('certificate')->getClientMimeType();
                     $size = $request->file('certificate')->getSize();
                     $request->certificate  = UploadHelper::UploadFile($request->file('certificate'), 'employees_certificates');
                     // $request->file('certificate')->move(public_path('certificate'), $fileName);   
-                }
+              
 
                 $employee_certificate = [
                     'employees_id' => $employee_data->id,

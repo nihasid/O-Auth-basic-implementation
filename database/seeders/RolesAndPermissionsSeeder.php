@@ -36,6 +36,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $editEmployee = 'edit employee';
         $deleteEmployee = 'delete employee';
 
+        $shareData = 'share data';
+
         Permission::create(['name' => $addUser]);
         Permission::create(['name' => $editUser]);
         Permission::create(['name' => $deleteUser]);
@@ -51,6 +53,8 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::create(['name' => $deleteEmployee]);
         Permission::create(['name' => $viewEmployee]);
 
+        Permission::create(['name' => $shareData]);
+
         //  define roles available
         $superAdmin = 'super-admin';
         $proAdmin = 'pro-admin';
@@ -58,13 +62,13 @@ class RolesAndPermissionsSeeder extends Seeder
         $standardAdmin = 'standard-admin';
         $standardData = 'standard-data';
 
+
         //pro account is to share and access other companies data and update data.
         // standard account is for local access data with in company.
         
         
         Role::create(['name' => $superAdmin])->givePermissionTo(Permission::all());
         Role::create(['name' => $proAdmin])->givePermissionTo([
-            $addUser,
             $editUser,
             $deleteUser,
             $viewUser,
@@ -73,7 +77,8 @@ class RolesAndPermissionsSeeder extends Seeder
             $deleteEmployee,
             $viewEmployee,
             $editCompany,
-            $viewCompany
+            $viewCompany,
+            $shareData
         ]);
 
         Role::create(['name' => $proData])->givePermissionTo([
@@ -92,7 +97,8 @@ class RolesAndPermissionsSeeder extends Seeder
             $deleteEmployee,
             $viewEmployee,
             $editCompany,
-            $viewCompany
+            $viewCompany,
+            $shareData
         ]);
 
         Role::create(['name' => $standardData])->givePermissionTo([

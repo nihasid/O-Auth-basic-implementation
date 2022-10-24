@@ -22,7 +22,12 @@ class Duties extends Model
     // protected $primaryKey = 'id';
     // public $timestamps = false;
     protected $guarded = ['id'];
-    // protected $fillable = [];
+    protected $fillable = [
+        'duty_type_group_name',
+        'duty_group_detail',
+        'duty_group_slug',
+        'status'
+    ];
     // protected $hidden = [];
     // protected $dates = [];
 

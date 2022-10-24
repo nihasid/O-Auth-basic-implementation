@@ -23,6 +23,7 @@ class RegisterController extends BaseController
      */
     public function register(Request $request)
     {
+        
         $validator = Validator::make($request->all(), [
             'contact_username' => 'required',
             // 'last_name' => 'required',
@@ -54,6 +55,8 @@ class RegisterController extends BaseController
             'is_active' => true,
             'status' => true,
         ];
+
+       
         $company = Company::where('company_name', $input['company_name'])->where('business_type', $input['business_type'])->first();
 
         if (!isset($company) && empty($company)) {

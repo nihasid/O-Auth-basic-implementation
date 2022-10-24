@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create('companies', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('business_type')->unique()->nullable();
+            $table->string('business_type')->nullable();
             $table->string('company_name', 255);
             $table->string('company_department', 255)->nullable();
             $table->string('short_description', 255)->nullable();
