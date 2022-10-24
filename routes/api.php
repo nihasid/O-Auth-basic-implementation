@@ -26,24 +26,24 @@ Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login'])->name('login');
 
  
-Route::group(['middleware' => ['auth:api'], 'role:super-admin|pro-admin'], function () {
-    Route::group(['prefix' => 'admin'], function () {
-
-        Route::get('/employees', [EmployeesAPIController::class, 'index']);
-        Route::get('/employees/view/{id}', [EmployeesAPIController::class, 'show']);
-        Route::post('/employees', 'EmployeesAPIController@store');
+Route::group(['middleware' => ['auth:api', 'role:pro-admin|standard-admin']], function () {
+    Route::group(['prefix' => 'admin', 'middleware' => ['super-admin']], function () {
         Route::get('/companies', [CompanyAPIController::class, 'index']);
         Route::post('/companies', [CompanyAPIController::class, 'store']);
         Route::put('/company/{id}', [CompanyAPIController::class, 'update']);
         Route::get('/users/all', 'UserAPIController@index');
-        Route::get('/user/{id}', 'UserAPIController@show');
-        Route::put('/user/{id}/edit', 'UserAPIController@update');
         Route::post('/employee/{employee}/edit', 'EmployeesAPIController@update');
         Route::delete('/user/{id}/delete', 'UserAPIController@destroy');
-        Route::delete('/employee/{id}/delete', 'EmployeesAPIController@destroy');
         Route::delete('/company/{id}/delete', 'CompanyAPIController@destroy');
-        Route::post('/invitation/send', 'InvitationController@sendInvites');
+        
     });
+    Route::get('/employees', [EmployeesAPIController::class, 'index']);
+    Route::get('/employees/view/{id}', [EmployeesAPIController::class, 'show']);
+    Route::post('/employees', 'EmployeesAPIController@store');
+    Route::get('/user/{id}', 'UserAPIController@show');
+    Route::put('/user/{id}/edit', 'UserAPIController@update');
+    Route::delete('/employee/{id}/delete', 'EmployeesAPIController@destroy');
+    Route::post('/invitation/send', 'InvitationController@sendInvites');
 });
 
 // Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

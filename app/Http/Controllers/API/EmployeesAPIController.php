@@ -36,7 +36,7 @@ class EmployeesAPIController extends BaseController
 
         // get all employees list with company, duties, positions and certificates
         $data = Employees::with(['company' => function ($query) {
-            $query->select('id', 'company_type_id', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
+            $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
                 ->where('status', 1);
         }, 'position' => function ($query) {
             $query->select('id', 'position_code', 'position_category', 'position_name')->where('status', 1);
@@ -216,22 +216,22 @@ class EmployeesAPIController extends BaseController
         //
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required',
-            'first_name' => 'required',
-            'last_name' => 'required',
-            'email' => 'required|email',
-            'gender' => 'required',
-            'date_of_birth' => 'required|date_format:Y-m-d',
-            'position_id' => 'required',
-            'duty_id' => 'required',
-            'emp_started_period' => 'date|date_format:Y-m-d|nullable',
-            'emp_ended_period' => 'date|date_format:Y-m-d|nullable',
-            'certificate_created_at' => 'date_format:Y-m-d',
-            'certificate_expires_at' => 'requires|date_format:Y-m-d',
-            'enrolled_date_started' => 'date_format:Y-m-d|nullable',
-            'enrolled_date_ended' => 'date_format:Y-m-d|nullable',
-            'emp_started_period' => 'date_format:Y-m-d|nullable',
-            'duty_started_at' => 'required|date_format:Y-m-d',
-            'duty_expires_at' => 'date_format:Y-m-d',
+            // 'first_name' => 'required',
+            // 'last_name' => 'required',
+            // 'email' => 'required|email',
+            // 'gender' => 'required',
+            // 'date_of_birth' => 'required|date_format:Y-m-d',
+            // 'position_id' => 'required',
+            // 'duty_id' => 'required',
+            // 'emp_started_period' => 'date|date_format:Y-m-d|nullable',
+            // 'emp_ended_period' => 'date|date_format:Y-m-d|nullable',
+            // 'certificate_created_at' => 'date_format:Y-m-d',
+            // 'certificate_expires_at' => 'requires|date_format:Y-m-d',
+            // 'enrolled_date_started' => 'date_format:Y-m-d|nullable',
+            // 'enrolled_date_ended' => 'date_format:Y-m-d|nullable',
+            // 'emp_started_period' => 'date_format:Y-m-d|nullable',
+            // 'duty_started_at' => 'required|date_format:Y-m-d',
+            // 'duty_expires_at' => 'date_format:Y-m-d',
             // 'certificates' => 'mimes:pdf'
         ]);
 

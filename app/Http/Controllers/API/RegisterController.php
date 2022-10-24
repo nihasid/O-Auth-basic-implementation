@@ -48,7 +48,7 @@ class RegisterController extends BaseController
             'company_name' => $input['company_name'],
             'company_ceo_name' => $input['company_ceo_name'],
             'business_type' => $input['business_type'],
-            'first_name' => $input['contact_username'],
+            'name' => $input['contact_username'],
             'email' => $input['email'],
             'password' => $input['password'],
             'is_active' => true,
