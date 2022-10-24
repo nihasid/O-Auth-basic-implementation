@@ -26,8 +26,8 @@ Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login'])->name('login');
 
  
-Route::group(['middleware' => ['auth:api', 'role:pro-admin|standard-admin']], function () {
-    Route::group(['prefix' => 'admin', 'middleware' => ['super-admin']], function () {
+Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-admin']], function () {
+    Route::group(['prefix' => 'admin'], function () {
         Route::get('/companies', [CompanyAPIController::class, 'index']);
         Route::post('/companies', [CompanyAPIController::class, 'store']);
         Route::put('/company/{id}', [CompanyAPIController::class, 'update']);

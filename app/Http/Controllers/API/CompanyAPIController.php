@@ -24,7 +24,7 @@ class CompanyAPIController extends BaseController
     {
 
         $data = Company::leftJoin('employees', 'employees.company_id', '=', 'companies.id')
-            ->select('companies.id', 'company_type_id', 'company_name', 'company_department', 'company_started_at', 'company_ended_at', \DB::raw('COUNT(employees.id) as employees'))
+            ->select('companies.id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at', \DB::raw('COUNT(employees.id) as employees'))
             ->groupBy('companies.id')->whereNotNull('status')
             ->orderBy('companies.created_at', 'desc');
 
@@ -40,7 +40,7 @@ class CompanyAPIController extends BaseController
 
         // get all Companies list with company, duties, positions and certificates
         // $data = Company::leftJoin('employees', 'employees.company_id', '=', 'companies.id')
-        //     ->select('companies.id', 'company_type_id', 'company_name', 'company_department', 'company_started_at', 'company_ended_at', \DB::raw('COUNT(employees.id) as employees'))
+        //     ->select('companies.id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at', \DB::raw('COUNT(employees.id) as employees'))
         //     ->groupBy('companies.id')->whereNotNull('status')
         //     ->orderBy('companies.created_at', 'desc')
         //     ->paginate($request->limit);
@@ -52,7 +52,7 @@ class CompanyAPIController extends BaseController
     {
         // save employee w.r.t ompany, duties, positions and certificates
         $validator = Validator::make($request->all(), [
-            'company_type_id' => 'required',
+            'business_type' => 'required',
             'company_name' => 'required',
             'company_department' => 'required',
             'company_started_at' => 'date|date_format:Y-m-d|required',
@@ -95,7 +95,7 @@ class CompanyAPIController extends BaseController
         // save employee w.r.t ompany, duties, positions and certificates
         $validator = Validator::make($request->all(), [
             'company_id' => 'required',
-            'company_type_id' => 'required',
+            'business_type' => 'required',
             'company_name' => 'required',
             'company_department' => 'required',
             'company_started_at' => 'date|date_format:Y-m-d|required',
