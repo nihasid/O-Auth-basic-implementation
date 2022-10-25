@@ -130,8 +130,7 @@ class Users extends Authenticatable
             'is_active'     => Constant::BOOL_STR[$data['status']],
             'company_id'    => $data['company_id'],
             'created_by'    => Auth::id(),
-            'first_name'            => $data['first_name'],
-            'last_name'             => $data['last_name'],
+            'name'            => $data['name'],
             // 'email_notification'    => (isset($data['emailNotification']) ? 1 : 0),
         ]);
         $user->update();
