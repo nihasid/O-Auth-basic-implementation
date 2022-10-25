@@ -44,6 +44,18 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-
     Route::put('/user/{id}/edit', 'UserAPIController@update');
     Route::delete('/employee/{id}/delete', 'EmployeesAPIController@destroy');
     Route::post('/invitation/send', 'InvitationController@sendInvites');
+
+    // ******** Dashboard Routes *************
+    Route::get('/dashboard', 'UserAPIController@getdashboardData')->name('dashboard-get');
+    
+    // ******** Positions Routes *************
+    Route::get('/positions', 'PositionsController@index')->name('positions-get');
+
+    // ******** Duties Routes *************
+    Route::get('/duties', 'DutiesAPIController@index')->name('duties-get');
+
+    // ******** Duties Routes *************
+    Route::get('/roles', 'UserAPIController@getAllRoles')->name('roles-get');
 });
 
 // Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

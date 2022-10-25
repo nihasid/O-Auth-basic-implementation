@@ -105,4 +105,8 @@ class Roles extends Model
     | MUTATORS
     |--------------------------------------------------------------------------
     */
+
+    static function getAllRoles() {
+        return Roles::whereNotIn('name', ['super-admin', 'pro-data', 'standard-data'])->select('id', 'name')->get()->toArray();
+    }
 }

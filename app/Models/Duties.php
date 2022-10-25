@@ -69,4 +69,7 @@ class Duties extends Model
     | MUTATORS
     |--------------------------------------------------------------------------
     */
+    static function getAllDuties() {
+        return Duties::where('status', true)->select('id',  'duty_type_group_name')->get()->toArray();
+    }
 }

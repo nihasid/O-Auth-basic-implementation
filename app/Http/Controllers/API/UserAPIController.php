@@ -10,7 +10,10 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\API\BaseController as BaseController;
 use App\Models\Users;
 use App\Models\Company;
+use App\Models\Roles;
 use App\Helpers\ResponseHandler;
+use App\Models\Duties;
+use App\Models\Positions;
 use File;
 use Validator;
 use DateTime;
@@ -105,4 +108,28 @@ class UserAPIController extends BaseController
             return ResponseHandler::serverError($e);
         }
     }
+
+    public function getAllRoles() {
+        $rolesData = Roles::getAllRoles();
+        $data = [
+            'count' => count($rolesData),
+            'data' => $rolesData
+        ];
+        return ResponseHandler::success($data);
+    }
+
+    public function getdashboardData() {
+        $roles = Roles::getAllRoles();
+        $positions = Positions::getAllPositions();
+        $duties = Duties::getAllDuties();
+        
+        $data = [
+            // 'count' => count($rolesData),
+            'roles' => $roles,
+            'positions' => $positions,
+            'duties' => $duties
+        ];
+        return ResponseHandler::success($data);
+    }
+    
 }

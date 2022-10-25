@@ -65,4 +65,7 @@ class Positions extends Model
     | MUTATORS
     |--------------------------------------------------------------------------
     */
+    static function getAllPositions() {
+        return Positions::where('status', true)->select('id', 'position_category', 'position_name')->get()->toArray();
+    }
 }
