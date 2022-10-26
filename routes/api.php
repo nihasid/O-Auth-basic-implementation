@@ -47,12 +47,14 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-
 
     // ******** Dashboard Routes *************
     Route::get('/dashboard', 'UserAPIController@getdashboardData')->name('dashboard-get');
-    
+
     // ******** Positions Routes *************
     Route::get('/positions', 'PositionsController@index')->name('positions-get');
 
     // ******** Duties Routes *************
     Route::get('/duties', 'DutiesAPIController@index')->name('duties-get');
+    Route::post('/duties/create-update', 'DutiesAPIController@createUpdate')->name('duties-create-update');
+    Route::delete('employee/{employeeId}/duties/{dutyId}/delete', 'DutiesAPIController@destroy')->name('duties-delete');
 
     // ******** Duties Routes *************
     Route::get('/roles', 'UserAPIController@getAllRoles')->name('roles-get');
