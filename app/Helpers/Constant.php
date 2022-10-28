@@ -91,6 +91,8 @@ class Constant
         'notification' => 'Reminder to register employee in duty',
         'invitation' => 'Invitation email'
     ];
+
+    const PAGINATION_LIMIT = 10;
     
 
 }

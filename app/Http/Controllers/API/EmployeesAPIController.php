@@ -33,22 +33,35 @@ class EmployeesAPIController extends BaseController
      */
     public function index(Request $request)
     {
-
+        // DB::enableQueryLog();
         // get all employees list with company, duties, positions and certificates
-        $data = Employees::with(['company' => function ($query) {
+        $employees = $count = Employees::with(['company' => function ($query) {
             $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
                 ->where('status', 1);
         }, 'position' => function ($query) {
             $query->select('id', 'position_code', 'position_category', 'position_name')->where('status', 1);
         }, 'duties' => function ($query) {
-            $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('enrolled_date_started_at', 'enrolled_date_ended_at');
+            $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at');
         }, 'certificates' => function ($query) {
             $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
         }])
-            ->where('employees.is_active', 1)
-            ->orderBy('created_at', 'desc')
-            ->paginate($request->limit);
-        return response()->json(['data' => $data], 200);
+            ->where('employees.is_active', 1);
+            
+            if (!Auth()->user()->hasRole('super-admin')) {
+                $company_id = auth()->user()->company_id;
+                $employees->where('company_id', $company_id);
+                
+            }
+            $employees->orderBy('created_at', 'desc');
+            $count = $count->get()->count();
+            $employees = $employees->simplePaginate(Constant::PAGINATION_LIMIT);
+            // dd(DB::getQueryLog());
+
+            $data = [
+               'count' => $count,
+                'data' => $employees
+            ];
+        return ResponseHandler::success( $data, 200);
     }
 
     /**
@@ -106,7 +119,7 @@ class EmployeesAPIController extends BaseController
                 'email' => $request->email,
                 'gender' => $request->gender,
                 'date_of_birth' => $request->date_of_birth,
-                'company_id' => $request->company_id,
+                'company_id' => $company_id,
                 'position_id' => $request->position_id,
                 'is_active' => ($request->is_active) ? $request->is_active : true
             ]);
@@ -132,7 +145,7 @@ class EmployeesAPIController extends BaseController
             //     }
             // }
 
-            if(isset($request->duties) && count($request->duties) > 0 && array_key_exists( 'id', $request->duties) && count(array_column($request->duties, 'id')) > 0 ) {
+            if(isset($request->duties) && count($request->duties) > 0) {
                 $duty_ids = array_column($request->duties, 'id');
                 $duties_exists = Duties::whereIn('id', $duty_ids)->get();
                 
@@ -144,23 +157,24 @@ class EmployeesAPIController extends BaseController
                $duties_employees = [];
     
                 foreach($request->duties as $key => $duty) {
-    
+                    if(array_key_exists( 'id', $duty) ) {
                         if(empty($duty['duty_started_at'])) {
-                        DB::rollBack();
-                        return ResponseHandler::validationError(['duty_started_at' => 'duty_started_at field is required']);
+                            DB::rollBack();
+                            return ResponseHandler::validationError(['duty_started_at' => 'duty_started_at field is required']);
+                        }
+            
+                        if(empty($duty['duty_expires_at'])) {
+                            DB::rollBack();
+                            return ResponseHandler::validationError(['duty_expires_at' => 'duty_expires_at field is required']);
+                        }
+                        $duties_employees[$key] = DutiesEmployees::create([
+                            'duties_id'     => $duty['id'],
+                            'employees_id'  => $employee_data->id,
+                            'company_id'    => $employee_data->company_id,
+                            'enrolled_date_started_at' => $duty['duty_started_at'],
+                            'enrolled_date_ended_at' => $duty['duty_expires_at']
+                        ]);
                     }
-        
-                    if(empty($duty['duty_expires_at'])) {
-                        DB::rollBack();
-                        return ResponseHandler::validationError(['duty_expires_at' => 'duty_expires_at field is required']);
-                    }
-                    $duties_employees[$key] = DutiesEmployees::create([
-                        'duties_id'     => $duty['id'],
-                        'employees_id'  => $employee_data->id,
-                        'company_id'    => $employee_data->company_id,
-                        'enrolled_date_started_at' => $duty['duty_started_at'],
-                        'enrolled_date_ended_at' => $duty['duty_expires_at']
-                    ]);
                 }
             }
           
