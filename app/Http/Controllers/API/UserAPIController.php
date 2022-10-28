@@ -125,7 +125,7 @@ class UserAPIController extends BaseController
         
         $data = [
             // 'count' => count($rolesData),
-            'roles' => $roles,
+            // 'roles' => $roles,
             'positions' => $positions,
             'duties' => $duties
         ];
