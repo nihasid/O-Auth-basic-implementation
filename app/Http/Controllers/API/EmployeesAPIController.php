@@ -416,7 +416,7 @@ class EmployeesAPIController extends BaseController
         //
         try {
             if (Employees::whereId($id)->exists()) {
-                $employee_deleted__status = Employees::deleteEmployee($id);
+                $employee_deleted__status = Employees::where('id', $id)->update(['is_active' => false]);
                 return ResponseHandler::success(['Employee deleted successfully']);
             } else {
                 return ResponseHandler::validationError(['Employee not found']);
