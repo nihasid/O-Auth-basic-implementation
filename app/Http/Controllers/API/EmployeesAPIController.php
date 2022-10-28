@@ -383,5 +383,91 @@ class EmployeesAPIController extends BaseController
         }
     }
 
-    
+    /**
+     * Add certificates the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function createUpdate (Request $request) {
+        $now = new DateTime();
+        $company_id = auth()->user()->company_id;
+        if (!isset($company_id) && empty($company_id)) {
+            return ResponseHandler::validationError('Company field is required.');
+        }
+        // save employee w.r.t ompany, duties, positions and certificates
+        $validationRules = [
+            'certificates' => 'required',
+            'certificate_created_at' => 'date_format:Y-m-d',
+            'certificate_expires_at' => 'requires|date_format:Y-m-d'
+        ];
+
+        $employeeData = Employees::find($request->employee_id);
+        
+        if (!isset($employeeData->company_id) && empty($employeeData->company_id) && !Auth()->user()->hasRole('super-admin')) {
+            $validationRules['company_id'] = 'required';
+        }
+
+        $validator = Validator::make($request->all(), $validationRules);
+
+
+
+        if ($validator->fails()) {
+            return ResponseHandler::validationError($validator->errors());
+        }
+
+        try {
+
+            DB::beginTransaction();
+            $certificate_created_at = (!empty($request->certificate_created_at) ? $request->certificate_created_at : $now->format('Y-m-d'));
+            $certificate_expires_at = (!empty($request->certificate_expires_at) ? $request->certificate_expires_at : (date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
+
+            if (!Duties::where('id', $request->duty_id)->exists()) {
+                return ResponseHandler::validationError(['undefined employee duty!']);
+            }
+
+
+            if (!empty($request->file('certificates'))) {
+
+                $allowedfileExtension = ['pdf'];
+                $files = $request->file('certificates');
+                $errors = [];
+
+                if ($allowedfileExtension) {
+                    foreach ($request->file('certificates') as $mediaFiles) {
+                        $fileName = time() . '.' . $mediaFiles->extension();
+                        $type = $mediaFiles->getClientMimeType();
+                        $size = $mediaFiles->getSize();
+                        $request->certificate  = UploadHelper::UploadFile($mediaFiles, 'employees/certificates');
+
+                        $employee_certificate = [
+                            'employees_id' => $employeeData->id,
+                            'certificate' => $request->certificate,
+                            'status' => true,
+                            'certificate_created_at' => $certificate_created_at,
+                            'certificate_expires_at' => $certificate_expires_at
+                        ];
+
+                        $response = EmployeesCertificates::create($employee_certificate);
+                        $msg = (isset($response) && !empty($response))? 'Certificate has been added successfully':'';
+                    }
+                }  else {
+                    DB::rollBack();
+                    return ResponseHandler::validationError(['invalid_file_format']);
+                }
+            }
+
+            $data = Employees::with(['company', 'certificates' => function ($query) {
+                $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
+            }])->find($employeeData->id);
+           
+            return ResponseHandler::success($data, $msg);
+           
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
+        }
+    }
 }

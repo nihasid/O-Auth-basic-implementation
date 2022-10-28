@@ -108,7 +108,6 @@ class RegisterController extends BaseController
 
         $data = [];
         try {
-
             $user = Users::where(["email" => $request->email, 'is_active' => true])->first();
 
             if ($user) {

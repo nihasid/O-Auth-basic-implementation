@@ -82,7 +82,9 @@ class DutiesAPIController extends BaseController
             $validator = Validator::make($request->all(), [
                 'employee_id' => 'required',
                 'duty_id' => 'required',
-                'duty_id' => 'required'
+                'duty_id' => 'required',
+                'enrolled_started_date' => 'date_format:Y-m-d',
+                'enrolled_ended_date' => 'date_format:Y-m-d'
             ]);
 
             if ($validator->fails()) {

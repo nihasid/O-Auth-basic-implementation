@@ -25,7 +25,7 @@ Route::get('/invitations', 'InvitationController@getAllInvites');
 Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login'])->name('login');
 
- 
+
 Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-admin']], function () {
     Route::group(['prefix' => 'admin'], function () {
         Route::get('/companies', [CompanyAPIController::class, 'index']);
@@ -35,7 +35,6 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-
         Route::post('/employee/{employee}/edit', 'EmployeesAPIController@update');
         Route::delete('/user/{id}/delete', 'UserAPIController@destroy');
         Route::delete('/company/{id}/delete', 'CompanyAPIController@destroy');
-        
     });
     Route::get('/employees', [EmployeesAPIController::class, 'index']);
     Route::get('/employees/view/{id}', [EmployeesAPIController::class, 'show']);
@@ -55,6 +54,12 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-
     Route::get('/duties', 'DutiesAPIController@index')->name('duties-get');
     Route::post('/duties/create-update', 'DutiesAPIController@createUpdate')->name('duties-create-update');
     Route::delete('employee/{employeeId}/duties/{dutyId}/delete', 'DutiesAPIController@destroy')->name('duties-delete');
+
+
+    // ******** Employee Certificate Routes *************
+    Route::get('/certificates', 'DutiesAPIController@index')->name('emp-get');
+    Route::post('/employee/certificate/create-update', 'EmployeesAPIController@createUpdate')->name('emp-create-update');
+    Route::post('employee/certificates/delete', 'EmployeesAPIController@destroy')->name('emp-delete');
 
     // ******** Duties Routes *************
     Route::get('/roles', 'UserAPIController@getAllRoles')->name('roles-get');

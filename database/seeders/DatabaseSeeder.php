@@ -16,10 +16,10 @@ class DatabaseSeeder extends Seeder
     {
         
         $this->call([
-            PositionSeeder::class
+            // PositionSeeder::class,
             // DutySeeder::class,
-            // RolesAndPermissionsSeeder::class,
-            // UserSeeder::class,
+            RolesAndPermissionsSeeder::class,
+            UserSeeder::class,
         ]);
         // \App\Models\User::factory()->create([
         //     'name' => 'Test User',
