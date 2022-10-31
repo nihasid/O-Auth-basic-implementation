@@ -32,11 +32,11 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-
         Route::post('/companies', [CompanyAPIController::class, 'store']);
         Route::put('/company/{id}', [CompanyAPIController::class, 'update']);
         Route::get('/users/all', 'UserAPIController@index');
-        Route::post('/employee/{employee}/edit', 'EmployeesAPIController@update');
         Route::delete('/user/{id}/delete', 'UserAPIController@destroy');
         Route::delete('/company/{id}/delete', 'CompanyAPIController@destroy');
     });
     Route::get('/employees', [EmployeesAPIController::class, 'index']);
+    Route::post('/employee/{employee}/edit', 'EmployeesAPIController@update');
     Route::get('/employees/view/{id}', [EmployeesAPIController::class, 'show']);
     Route::post('/employees', 'EmployeesAPIController@store');
     Route::get('/user/{id}', 'UserAPIController@show');

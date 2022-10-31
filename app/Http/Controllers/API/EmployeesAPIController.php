@@ -23,6 +23,7 @@ use DateTime;
 use DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB as FacadesDB;
+use phpseclib3\File\ASN1\Maps\Certificate;
 
 class EmployeesAPIController extends BaseController
 {
@@ -41,9 +42,11 @@ class EmployeesAPIController extends BaseController
         }, 'position' => function ($query) {
             $query->select('id', 'position_code', 'position_category', 'position_name')->where('status', 1);
         }, 'duties' => function ($query) {
-            $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at');
+            $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')
+            ->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')
+            ->wherePivot('status', true);
         }, 'certificates' => function ($query) {
-            $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
+            $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->where('status', true)->orderBy('certificate_created_at');
         }])
             ->where('employees.is_active', 1);
             
@@ -99,7 +102,7 @@ class EmployeesAPIController extends BaseController
                 'duty_expires_at' => 'date_format:Y-m-d'
             ];
 
-            if (!Auth()->user()->hasRole('super-admin')) {
+            if (!isset($company_id) && empty($company_id) && !Auth()->user()->hasRole('super-admin')) {
                 $validationRules['company_id'] = 'required';
             }
 
@@ -119,7 +122,7 @@ class EmployeesAPIController extends BaseController
                 'email' => $request->email,
                 'gender' => $request->gender,
                 'date_of_birth' => $request->date_of_birth,
-                'company_id' => $company_id,
+                'company_id' => ($request->company_id)?$request->company_id:$company_id,
                 'position_id' => $request->position_id,
                 'is_active' => ($request->is_active) ? $request->is_active : true
             ]);
@@ -261,23 +264,22 @@ class EmployeesAPIController extends BaseController
                 'employee_id' => 'required',
                 // 'first_name' => 'required',
                 // 'last_name' => 'required',
-                // 'email' => 'required|email',
+                'email' => 'email',
                 // 'gender' => 'required',
-                // 'date_of_birth' => 'required|date_format:Y-m-d',
+                'date_of_birth' => 'date_format:Y-m-d',
                 // 'position_id' => 'required',
                 // 'duty_id' => 'required',
-                // 'emp_started_period' => 'date|date_format:Y-m-d|nullable',
-                // 'emp_ended_period' => 'date|date_format:Y-m-d|nullable',
+                'emp_started_period' => 'date|date_format:Y-m-d',
+                'emp_ended_period' => 'date|date_format:Y-m-d',
                 // 'certificate_created_at' => 'date_format:Y-m-d',
-                // 'certificate_expires_at' => 'requires|date_format:Y-m-d',
+                // 'certificate_expires_at' => 'required|date_format:Y-m-d',
                 // 'enrolled_date_started' => 'date_format:Y-m-d|nullable',
                 // 'enrolled_date_ended' => 'date_format:Y-m-d|nullable',
-                // 'emp_started_period' => 'date_format:Y-m-d|nullable',
                 // 'duty_started_at' => 'required|date_format:Y-m-d',
                 // 'duty_expires_at' => 'date_format:Y-m-d',
                 // 'certificates' => 'mimes:pdf'
             ]);
-
+            
             if ($validator->fails()) {
                 return $this->sendError('Validation Error.', $validator->errors());
             }
@@ -289,7 +291,7 @@ class EmployeesAPIController extends BaseController
 
             $company_id = Auth()->user()->company_id;
 
-            if (!isset($company_id) && empty($company_id)) {
+            if (!isset($company_id) && empty($company_id) && !Auth()->user()->hasRole('super-admin')) {
                 return ResponseHandler::validationError(['Company field is required.']);
             }
 
@@ -297,12 +299,6 @@ class EmployeesAPIController extends BaseController
 
             DB::beginTransaction();
 
-            $certificate_created_at = (!empty($request->certificate_created_at) ? $request->certificate_created_at : $now->format('Y-m-d'));
-            $certificate_expires_at = (!empty($request->certificate_expires_at) ? $request->certificate_expires_at : (date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
-
-            if (!Duties::where('id', $request->duty_id)->exists()) {
-                return ResponseHandler::validationError(['Undefined employee duty!']);
-            }
 
             $duty_expires_at = (isset($request->duty_expires_at) ? $request->duty_expires_at : '');
             $employee_array = [
@@ -318,8 +314,10 @@ class EmployeesAPIController extends BaseController
                 //'certificate_created_at => $request->certificate_created_at,
 
             ];
+            $input = $request->all();
+            unset($input['employee_id']);
 
-            $employee_data = $employee->whereId($employee->id)->update($employee_array);
+            $employee_data = $employee->whereId($employee->id)->update($input);
 
             // $duties_employees = DutiesEmployees::where('employee_id', $employee->id)->update([
             //     'duties_id' => $request->duty_id,
@@ -393,10 +391,7 @@ class EmployeesAPIController extends BaseController
                 $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
             }])->find($employee->id);
 
-            return response()->json([
-                'message' => 'Employee has been updated successfully',
-                'data' => $data
-            ], 200);
+            return ResponseHandler::success([$data], 'Employee detail has been updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseHandler::serverError($e);
@@ -435,17 +430,16 @@ class EmployeesAPIController extends BaseController
     public function createUpdate(Request $request)
     {
         $now = new DateTime();
-        $company_id = auth()->user()->company_id;
-        if (!isset($company_id) && empty($company_id)) {
-            return ResponseHandler::validationError('Company field is required.');
-        }
+      
         // save employee w.r.t ompany, duties, positions and certificates
         $validationRules = [
-            'certificates' => 'required',
-            'certificate_created_at' => 'date_format:Y-m-d',
-            'certificate_expires_at' => 'requires|date_format:Y-m-d'
+            'employee_id' => 'required'
+            // 'certificate_created_at' => 'date_format:Y-m-d',
+            // 'certificate_expires_at' => 'required|date_format:Y-m-d'
         ];
-
+        
+        $certificates_arr = $request->certificates;
+        $duty_id_arr = array_column( $certificates_arr, 'duty_id');
         $employeeData = Employees::find($request->employee_id);
 
         if (!isset($employeeData->company_id) && empty($employeeData->company_id) && !Auth()->user()->hasRole('super-admin')) {
@@ -454,23 +448,26 @@ class EmployeesAPIController extends BaseController
 
         $validator = Validator::make($request->all(), $validationRules);
 
-
-
         if ($validator->fails()) {
             return ResponseHandler::validationError($validator->errors());
         }
 
         try {
-
+            $msg = '';
             DB::beginTransaction();
             $certificate_created_at = (!empty($request->certificate_created_at) ? $request->certificate_created_at : $now->format('Y-m-d'));
             $certificate_expires_at = (!empty($request->certificate_expires_at) ? $request->certificate_expires_at : (date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
 
-            if (!Duties::where('id', $request->duty_id)->exists()) {
-                return ResponseHandler::validationError(['undefined employee duty!']);
-            }
-
-
+            // if (!Duties::where('id', $request->duty_id)->exists()) {
+            //     return ResponseHandler::validationError(['undefined employee duty!']);
+            // }
+                foreach($certificates_arr as $key => $certificate) {
+                    dd($certificate->file('certificate'));
+                    if(!isset($certificate['duty_id']) && empty($certificate['duty_id'])) {
+                        return ResponseHandler::validationError(['duty_id' => 'Duty id field is required for adding certificate.']);
+                    }
+                    
+                }
             if (!empty($request->file('certificates'))) {
 
                 $allowedfileExtension = ['pdf'];
@@ -500,6 +497,10 @@ class EmployeesAPIController extends BaseController
                     return ResponseHandler::validationError(['invalid_file_format']);
                 }
             }
+
+        
+
+            
 
             $data = Employees::with(['company', 'certificates' => function ($query) {
                 $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');

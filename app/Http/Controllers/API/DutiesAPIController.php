@@ -26,36 +26,28 @@ class DutiesAPIController extends BaseController
         return ResponseHandler::success($data);
     }
 
-    public function destroy($employeeId, $dutyId)
+    public function destroy($employeeId, $employeeDutyId)
     {
-
-
         $companyId = Auth::user()->company_id;
-        if (!isset($companyId) && empty($companyId)) {
+        if (!isset($companyId) && empty($companyId) && !Auth()->user()->hasRole('super-admin')) {
             return ResponseHandler::validationError(['company_id' => 'This employee does not belongs to any company.']);
         }
 
         try {
 
-
-
-            if (!Employees::whereId($employeeId)->where('is_active', true)->where('company_id', $companyId)->exists()) {
+            if (!Employees::whereId($employeeId)->where('is_active', true)->exists()) {
                 return ResponseHandler::validationError(['employee_id' => 'Employee ID is required.']);
             }
 
-            if (!Duties::whereId($dutyId)->where('status', true)->exists()) {
-                return ResponseHandler::validationError(['duty_id' => 'Duty ID is required.']);
-            }
+            // if (!Duties::whereId($dutyId)->where('status', true)->exists()) {
+            //     return ResponseHandler::validationError(['duty_id' => 'Duty ID is required.']);
+            // }
 
             DB::beginTransaction();
-            if (DutiesEmployees::where(['employees_id' => $employeeId, 'duties_id' => $dutyId])->exists()) {
+            if (DutiesEmployees::whereId($employeeDutyId)->exists()) {
 
 
-                $response = DutiesEmployees::where([
-                    'employees_id' => $employeeId,
-                    'duties_id' => $dutyId,
-                    'company_id' => $companyId
-                ])->update(['status' => false]);
+                $response = DutiesEmployees::whereId($employeeDutyId)->update(['status' => false]);
 
                 if (isset($response) && !empty($response)) {
                     return ResponseHandler::success([], 'Duty has been deleted successfully.');
@@ -73,7 +65,7 @@ class DutiesAPIController extends BaseController
     {
 
         $companyId = Auth::user()->company_id;
-        if (!isset($companyId) && empty($companyId)) {
+        if (!isset($companyId) && empty($companyId) && !Auth()->user()->hasRole('super-admin')) {
             return ResponseHandler::validationError(['company_id' => 'This employee does not belongs to any company.']);
         }
 
@@ -81,7 +73,6 @@ class DutiesAPIController extends BaseController
 
             $validator = Validator::make($request->all(), [
                 'employee_id' => 'required',
-                'duty_id' => 'required',
                 'duty_id' => 'required',
                 'enrolled_started_date' => 'date_format:Y-m-d',
                 'enrolled_ended_date' => 'date_format:Y-m-d'
@@ -91,7 +82,7 @@ class DutiesAPIController extends BaseController
                 return ResponseHandler::validationError($validator->errors());
             }
 
-            if (!Employees::whereId($request->employee_id)->where('is_active', true)->where('company_id', $companyId)->exists()) {
+            if (!Employees::whereId($request->employee_id)->where('is_active', true)->exists()) {
                 return ResponseHandler::validationError(['employee_id' => 'Employee ID is required.']);
             }
 
@@ -106,6 +97,7 @@ class DutiesAPIController extends BaseController
                 'status' => true,
                 'company_id' => $companyId
             ];
+
             $msg = '';
             $empoyeeDuties = DutiesEmployees::where(['employees_id' => $request->employee_id, 'duties_id' => $request->duty_id]);
             if ($empoyeeDuties->exists()) {
@@ -126,7 +118,7 @@ class DutiesAPIController extends BaseController
                     $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
                         ->where('status', 1);
                 }, 'duties' => function ($query) {
-                    $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('enrolled_date_started_at', 'enrolled_date_ended_at')->wherePivot('status', true);
+                    $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')->wherePivot('status', true);
                 }])
                     ->where('employees.is_active', 1)->find($request->employee_id);
             }
