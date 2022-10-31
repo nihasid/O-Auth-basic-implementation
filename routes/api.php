@@ -58,8 +58,8 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-
 
     // ******** Employee Certificate Routes *************
     Route::get('/certificates', 'DutiesAPIController@index')->name('emp-get');
-    Route::post('/employee/certificate/create-update', 'EmployeesAPIController@createUpdate')->name('emp-create-update');
-    Route::post('employee/certificates/delete', 'EmployeesAPIController@destroy')->name('emp-delete');
+    Route::post('/employee/certificate/create-update', 'EmployeesAPIController@createCertificate')->name('emp-create-update');
+    Route::delete('employee/{employeeId}/certificates/{certificateId}/delete', 'EmployeesAPIController@destroyCertificate')->name('emp-delete');
 
     // ******** Duties Routes *************
     Route::get('/roles', 'UserAPIController@getAllRoles')->name('roles-get');
