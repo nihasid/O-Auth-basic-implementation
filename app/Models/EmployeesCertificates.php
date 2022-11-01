@@ -30,4 +30,9 @@ class EmployeesCertificates extends Model
     public function employee() {
         return $this->belongsTo(Employees::class);
     }
+    
+    public function getCertificateAttribute($value) {
+        $certificate = env('APP_URL').'storage/'.$value;
+		return $certificate;
+    }
 }
