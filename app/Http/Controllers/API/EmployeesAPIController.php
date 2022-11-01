@@ -17,13 +17,11 @@ use App\Helpers\UploadHelper;
 use App\Models\Company;
 use App\Models\Duties;
 use App\Models\DutiesEmployees;
-use File;
 use Validator;
 use DateTime;
-use DB;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB as FacadesDB;
-use phpseclib3\File\ASN1\Maps\Certificate;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class EmployeesAPIController extends BaseController
 {
@@ -81,12 +79,12 @@ class EmployeesAPIController extends BaseController
             $uuid = Str::uuid()->toString();
             $now = new DateTime();
             $company_id = auth()->user()->company_id;
-
+// dd($company_id);
             // save employee w.r.t ompany, duties, positions and certificates
             $validationRules = [
                 'first_name' => 'required',
                 'last_name' => 'required',
-                'email' => 'required|email|unique:employees,email',
+                // 'email' => 'required|email|unique:employees,email|unique:employees,company_id|unique:employees,is_active',
                 'gender' => 'required',
                 'date_of_birth' => 'required|date_format:Y-m-d',
                 'position_id' => 'required',
@@ -100,6 +98,9 @@ class EmployeesAPIController extends BaseController
                 'duty_started_at' => 'date_format:Y-m-d',
                 'duty_expires_at' => 'date_format:Y-m-d'
             ];
+            $validationRules['email'] = ['required', Rule::unique('users')->where(function ($query) use ($request, $company_id) {
+                $query->where('id', $request->employee_id)->where("company_id",$company_id)->where('is_active', true); 
+             })];
 
             if (!isset($company_id) && empty($company_id) && !Auth()->user()->hasRole('super-admin')) {
                 $validationRules['company_id'] = 'required';
@@ -174,7 +175,8 @@ class EmployeesAPIController extends BaseController
                             'employees_id'  => $employee_data->id,
                             'company_id'    => $employee_data->company_id,
                             'enrolled_date_started_at' => $duty['duty_started_at'],
-                            'enrolled_date_ended_at' => $duty['duty_expires_at']
+                            'enrolled_date_ended_at' => $duty['duty_expires_at'],
+                            'status' => true
                         ]);
                     }
                 }
@@ -461,51 +463,56 @@ class EmployeesAPIController extends BaseController
             // }
             for ($i = 0; $i < count($certificates_arr); $i++) {
                 if (!empty($request->file('certificates')[$i])) {
+                    if (DutiesEmployees::where(['employees_id' => $request->employee_id, 'duties_id' => $certificates_arr[$i]['duty_id']])->exists()) {
 
-                    if (!isset($certificates_arr[$i]['duty_id']) && empty($certificates_arr[$i]['duty_id'])) {
-                        return ResponseHandler::validationError(['duty_id' => 'duty_id field is required for adding certificate.']);
-                    }
-                    if (!isset($certificates_arr[$i]['certificate_created_at']) && empty($certificates_arr[$i]['certificate_created_at'])) {
-                        return ResponseHandler::validationError(['certificate_created_at' => 'certificate_created_at field is required for adding certificate.']);
-                    }
-                    if (!isset($certificates_arr[$i]['certificate_expires_at']) && empty($certificates_arr[$i]['certificate_expires_at'])) {
-                        return ResponseHandler::validationError(['certificate_expires_at' => 'certificate_expires_at field is required for adding certificate.']);
-                    }
+                        if (!isset($certificates_arr[$i]['duty_id']) && empty($certificates_arr[$i]['duty_id'])) {
+                            return ResponseHandler::validationError(['duty_id' => 'duty_id field is required for adding certificate.']);
+                        }
+                        if (!isset($certificates_arr[$i]['certificate_created_at']) && empty($certificates_arr[$i]['certificate_created_at'])) {
+                            return ResponseHandler::validationError(['certificate_created_at' => 'certificate_created_at field is required for adding certificate.']);
+                        }
+                        if (!isset($certificates_arr[$i]['certificate_expires_at']) && empty($certificates_arr[$i]['certificate_expires_at'])) {
+                            return ResponseHandler::validationError(['certificate_expires_at' => 'certificate_expires_at field is required for adding certificate.']);
+                        }
 
-                    $duty_id = $certificates_arr[$i]['duty_id'];
-                    $certificate_created_at = (!empty($certificates_arr[$i]['certificate_created_at']) ? $certificates_arr[$i]['certificate_created_at'] : $now->format('Y-m-d'));
-                    $certificate_expires_at = (!empty($certificates_arr[$i]['certificate_expires_at']) ? $certificates_arr[$i]['certificate_expires_at'] : (date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
-                    $allowedfileExtension = ['pdf'];
-                    $certificate = $request->file('certificates')[$i]['certificate'];
-                    $errors = [];
+                        $duty_id = $certificates_arr[$i]['duty_id'];
+                        $certificate_created_at = (!empty($certificates_arr[$i]['certificate_created_at']) ? $certificates_arr[$i]['certificate_created_at'] : $now->format('Y-m-d'));
+                        $certificate_expires_at = (!empty($certificates_arr[$i]['certificate_expires_at']) ? $certificates_arr[$i]['certificate_expires_at'] : (date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
+                        $allowedfileExtension = ['pdf'];
+                        $certificate = $request->file('certificates')[$i]['certificate'];
+                        $errors = [];
 
-                    if ($allowedfileExtension) {
+                        if ($allowedfileExtension) {
 
-                        $fileName = time() . '.' . $certificate->extension();
-                        $type = $certificate->getClientMimeType();
-                        $size = $certificate->getSize();
-                        $certificateUrl  = UploadHelper::UploadFile($certificate, 'employees/certificates');
+                            $fileName = time() . '.' . $certificate->extension();
+                            $type = $certificate->getClientMimeType();
+                            $size = $certificate->getSize();
+                            $certificateUrl  = UploadHelper::UploadFile($certificate, 'employees/certificates');
 
-                        $employee_certificate = [
-                            'employees_id' => $employeeData->id,
-                            'duties_id' => $duty_id,
-                            'certificate' => $certificateUrl,
-                            'status' => true,
-                            'certificate_created_at' => $certificate_created_at,
-                            'certificate_expires_at' => $certificate_expires_at
-                        ];
+                            $employee_certificate = [
+                                'employees_id' => $employeeData->id,
+                                'duties_id' => $duty_id,
+                                'certificate' => $certificateUrl,
+                                'status' => true,
+                                'certificate_created_at' => $certificate_created_at,
+                                'certificate_expires_at' => $certificate_expires_at
+                            ];
 
-                        $response = EmployeesCertificates::create($employee_certificate);
-                        $msg = (isset($response) && !empty($response)) ? 'Certificate has been added successfully' : '';
+                            $response = EmployeesCertificates::create($employee_certificate);
+                            $msg = 'Certificate has been added successfully';
+                        } else {
+                            DB::rollBack();
+                            return ResponseHandler::validationError(['file_format' => 'invalid_file_format']);
+                        }
                     } else {
                         DB::rollBack();
-                        return ResponseHandler::validationError(['invalid_file_format']);
+                        return ResponseHandler::validationError(['duty_id' => 'Employee not enrolled in specified duty.']);
                     }
                 }
             }
 
             $data = Employees::with(['company', 'certificates' => function ($query) {
-                $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
+                $query->select('id', 'employees_id', 'duties_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
             }])->find($employeeData->id);
 
             return ResponseHandler::success($data, $msg);
@@ -527,7 +534,7 @@ class EmployeesAPIController extends BaseController
     {
         //
         try {
-            if(Employees::whereId($employeeId)->exists()) {
+            if (Employees::whereId($employeeId)->exists()) {
                 if (EmployeesCertificates::whereId($certificateId)->exists()) {
                     $employeeCertificateDeletedStatus = EmployeesCertificates::where('id', $certificateId)->update(['status' => false]);
                     return ResponseHandler::success(['Certificate has been deleted successfully']);
