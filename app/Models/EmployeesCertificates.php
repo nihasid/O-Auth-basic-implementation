@@ -14,7 +14,7 @@ class EmployeesCertificates extends Model
 
     protected $fillable = [
         'employees_id',
-        'duty_id',
+        'duties_id',
         'certificate',
         'status',
         'certificate_created_at',

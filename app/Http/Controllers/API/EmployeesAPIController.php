@@ -44,7 +44,7 @@ class EmployeesAPIController extends BaseController
                 ->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')
                 ->wherePivot('status', true);
         }, 'certificates' => function ($query) {
-            $query->select('id', 'employees_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->where('status', true)->orderBy('certificate_created_at');
+            $query->select('id', 'employees_id', 'duties_id',  'certificate', 'certificate_created_at', 'certificate_expires_at', 'status')->where('status', true)->orderBy('certificate_created_at');
         }])
             ->where('employees.is_active', 1);
 
@@ -79,7 +79,7 @@ class EmployeesAPIController extends BaseController
             $uuid = Str::uuid()->toString();
             $now = new DateTime();
             $company_id = auth()->user()->company_id;
-// dd($company_id);
+            // dd($company_id);
             // save employee w.r.t ompany, duties, positions and certificates
             $validationRules = [
                 'first_name' => 'required',
@@ -99,8 +99,8 @@ class EmployeesAPIController extends BaseController
                 'duty_expires_at' => 'date_format:Y-m-d'
             ];
             $validationRules['email'] = ['required', Rule::unique('users')->where(function ($query) use ($request, $company_id) {
-                $query->where('id', $request->employee_id)->where("company_id",$company_id)->where('is_active', true); 
-             })];
+                $query->where('id', $request->employee_id)->where("company_id", $company_id)->where('is_active', true);
+            })];
 
             if (!isset($company_id) && empty($company_id) && !Auth()->user()->hasRole('super-admin')) {
                 $validationRules['company_id'] = 'required';
@@ -491,7 +491,7 @@ class EmployeesAPIController extends BaseController
 
                             $employee_certificate = [
                                 'employees_id' => $employeeData->id,
-                                'duties_id' => $duty_id,
+                                'duties_id' => $certificates_arr[$i]['duty_id'],
                                 'certificate' => $certificateUrl,
                                 'status' => true,
                                 'certificate_created_at' => $certificate_created_at,
@@ -499,6 +499,7 @@ class EmployeesAPIController extends BaseController
                             ];
 
                             $response = EmployeesCertificates::create($employee_certificate);
+                            // dd($response);
                             $msg = 'Certificate has been added successfully';
                         } else {
                             DB::rollBack();
@@ -512,7 +513,7 @@ class EmployeesAPIController extends BaseController
             }
 
             $data = Employees::with(['company', 'certificates' => function ($query) {
-                $query->select('id', 'employees_id', 'duties_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->whereNotNull('status')->orderBy('certificate_created_at');
+                $query->select('id', 'employees_id', 'duties_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->where('status', true)->orderBy('certificate_created_at');
             }])->find($employeeData->id);
 
             return ResponseHandler::success($data, $msg);
@@ -546,6 +547,90 @@ class EmployeesAPIController extends BaseController
             }
         } catch (\Exception $e) {
             return ResponseHandler::serverError($e);
+        }
+    }
+
+    public function updateCertificate(Request $request)
+    {
+        $now = new DateTime();
+
+        // save employee w.r.t ompany, duties, positions and certificates
+        $validationRules = [
+            'employee_id' => 'required',
+            'certificate_id' => 'required',
+            'certificate_created_at' => 'date_format:Y-m-d',
+            'certificate_expires_at' => 'date_format:Y-m-d'
+        ];
+
+        $employeeData = Employees::where('is_active', true)->find($request->employee_id);
+
+        if (!isset($employeeData->company_id) && empty($employeeData->company_id) && !Auth()->user()->hasRole('super-admin')) {
+            $validationRules['company_id'] = 'required';
+        }
+
+        $validator = Validator::make($request->all(), $validationRules);
+
+        if ($validator->fails()) {
+            return ResponseHandler::validationError($validator->errors());
+        }
+
+        try {
+            $msg = '';
+            DB::beginTransaction();
+
+
+            $errors = [];
+            if (EmployeesCertificates::whereId($request->certificate_id)->where('employees_id', $request->employee_id)->exists()) {
+
+                $employee_certificate['certificate_created_at'] = $request->certificate_created_at;
+                $employee_certificate['certificate_expires_at'] = $request->certificate_expires_at;
+                
+                if(count($errors) > 0) {
+                    return ResponseHandler::validationError($errors);
+                }
+                
+                $allowedfileExtension = ['pdf'];
+                $certificate = $request->file('certificate');
+
+                $employee_certificate = [
+                    'employees_id' => $employeeData->id,
+                    // 'duties_id' => $employeeData->duty_id,
+                    'status' => true
+                ];
+
+                if (!empty($request->file('certificate'))) {
+                    if ($allowedfileExtension) {
+
+                        $fileName = time() . '.' . $certificate->extension();
+                        $type = $certificate->getClientMimeType();
+                        $size = $certificate->getSize();
+                        $certificateUrl  = UploadHelper::UploadFile($certificate, 'employees/certificates');
+                        $employee_certificate['certificate'] = $certificateUrl;
+                    } else {
+                        DB::rollBack();
+                        return ResponseHandler::validationError(['file_format' => 'invalid_file_format']);
+                    }
+                }
+
+                $response = EmployeesCertificates::where(['id' => $request->certificate_id, 'employees_id' => $request->employees_id])->update($employee_certificate);
+                $msg = 'Certificate has been updated successfully';
+            } else {
+                DB::rollBack();
+                return ResponseHandler::validationError(['certificate_id' => 'Certificate not found.']);
+            }
+
+
+
+            $data = Employees::with(['company', 'certificates' => function ($query) {
+                $query->select('id', 'employees_id', 'duties_id', 'certificate', 'certificate_created_at', 'certificate_expires_at', 'status')->where('status', true)->orderBy('certificate_created_at');
+            }])->find($employeeData->id);
+
+            return ResponseHandler::success($data, $msg);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
         }
     }
 }
