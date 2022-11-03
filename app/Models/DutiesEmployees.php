@@ -6,6 +6,7 @@ use Illuminate\Support\Str;
 use App\Traits\Uuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon;
 
 class DutiesEmployees extends Model
 {
@@ -42,6 +43,11 @@ class DutiesEmployees extends Model
     // {
     //     $this->attributes['id'] = Str::uuid()->toString();
     // }
+
+    public function getCertificateAttribute($value) {
+        $certificate = env('APP_URL').'storage/'.$value;
+		return $certificate;
+    }
 
 
 }
