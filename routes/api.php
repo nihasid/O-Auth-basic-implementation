@@ -26,7 +26,7 @@ Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login'])->name('login');
 
 
-Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-admin']], function () {
+Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-user|standard-user']], function () {
     Route::group(['prefix' => 'admin'], function () {
         Route::get('/companies', [CompanyAPIController::class, 'index']);
         Route::post('/companies', [CompanyAPIController::class, 'store']);
@@ -64,6 +64,10 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-admin|standard-
 
     // ******** Duties Routes *************
     Route::get('/roles', 'UserAPIController@getAllRoles')->name('roles-get');
+
+
+    // ******** Share Data with other Companies Routes *************
+    // Route::post('/share', 'ShareDataController@createDataToShare')->name('shareData-create');
 });
 
 // Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

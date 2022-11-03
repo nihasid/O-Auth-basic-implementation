@@ -21,18 +21,31 @@ class EmployeesCertificates extends Model
         'certificate_expires_at'
     ];
 
+    protected $dates = [];
     public static function boot()
     {
         parent::boot();
         parent::bootUuid();
     }
 
-    public function employee() {
+    public function employee()
+    {
         return $this->belongsTo(Employees::class);
     }
-    
-    public function getCertificateAttribute($value) {
-        $certificate = env('APP_URL').'storage/'.$value;
-		return $certificate;
+
+    public function getCertificateAttribute($value)
+    {
+        $certificate = env('APP_URL') . 'storage/' . $value;
+        return $certificate;
     }
+
+    // public function setCertificateCreatedAtAttribute($value)
+    // {
+    //     $this->attributes['certificate_created_at'] = (new Carbon($value))->format('Y-m-d');
+    // }
+
+    // public function setCertificateExpiresAtAttribute($value)
+    // {
+    //     $this->attributes['certificate_expires_at'] = (new Carbon($value))->format('Y-m-d');
+    // }
 }

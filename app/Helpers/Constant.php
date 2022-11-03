@@ -93,7 +93,11 @@ class Constant
     ];
 
     const PAGINATION_LIMIT = 10;
-    
+    const SHARED_TABLES = [
+        'employees',
+        'companies',
+        'invitations'
+    ];
 
 }
 

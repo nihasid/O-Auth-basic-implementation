@@ -243,10 +243,20 @@ class EmployeesAPIController extends BaseController
         if (empty($id) || $id == '' || $id == null) {
             return response()->json(['error' => 'Validation Error.', 'message' => 'employee id is required.'], 419);
         }
-        $employee_data = Employees::with('company', 'position', 'duties', 'certificates')->find($id);
-        return response()->json([
-            'data' => $employee_data
-        ], 200);
+        $employee_data = Employees::with(['company' => function ($query) {
+            $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
+                ->where('status', 1);
+        }, 'position' => function ($query) {
+            $query->select('id', 'position_code', 'position_category', 'position_name')->where('status', 1);
+        }, 'duties' => function ($query) {
+            $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')
+                ->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')
+                ->wherePivot('status', true);
+        }, 'certificates' => function ($query) {
+            $query->select('id', 'employees_id', 'duties_id',  'certificate', 'certificate_created_at', 'certificate_expires_at', 'status')->where('status', true)->orderBy('certificate_created_at');
+        }])->where('employees.is_active', 1)->find($id);
+        
+        return ResponseHandler::success($employee_data);
     }
 
     /**
@@ -582,8 +592,18 @@ class EmployeesAPIController extends BaseController
             $errors = [];
             if (EmployeesCertificates::whereId($request->certificate_id)->where('employees_id', $request->employee_id)->exists()) {
 
+                $employee_certificate = [
+                    'employees_id' => $employeeData->id,
+                    // 'duties_id' => $employeeData->duty_id,
+                    'status' => true
+                ];
+
+				if(isset($request->certificate_created_at) && !empty($request->certificate_created_at))
                 $employee_certificate['certificate_created_at'] = $request->certificate_created_at;
+				
+				if(isset($request->certificate_expires_at) && !empty($request->certificate_expires_at))
                 $employee_certificate['certificate_expires_at'] = $request->certificate_expires_at;
+                
                 
                 if(count($errors) > 0) {
                     return ResponseHandler::validationError($errors);
@@ -612,7 +632,7 @@ class EmployeesAPIController extends BaseController
                     }
                 }
 
-                $response = EmployeesCertificates::where(['id' => $request->certificate_id, 'employees_id' => $request->employees_id])->update($employee_certificate);
+                $response = EmployeesCertificates::whereId($request->certificate_id)->update($employee_certificate);
                 $msg = 'Certificate has been updated successfully';
             } else {
                 DB::rollBack();
