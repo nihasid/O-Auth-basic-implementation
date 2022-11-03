@@ -156,6 +156,20 @@ class EmployeesAPIController extends BaseController
 
                     if (Duties::whereId($dutiesCertificatesArr[$i]['duty_id'])->exists()) {
 
+                        $validationRules = [
+                            
+                            'duty_started_at' => 'required|date_format:Y-m-d',
+                            'duty_expires_at' => 'required|date_format:Y-m-d'
+                        ];
+            
+                        $validatorError = Validator::make($dutiesCertificatesArr[$i], $validationRules);
+            
+                        if ($validatorError->fails()) {
+                            DB::rollBack();
+                            return ResponseHandler::validationError($validatorError->errors());
+                        }
+                        //  *** validation for duty ***
+
                         if (empty($dutiesCertificatesArr[$i]['duty_started_at'])) {
                             DB::rollBack();
                             return ResponseHandler::validationError(['duty_started_at' => 'duty_started_at field is required']);
@@ -180,16 +194,8 @@ class EmployeesAPIController extends BaseController
                         // *** Add Certificate w.r.t employee duty starts ***
                         if (!empty($request->file('duties')[$i])) {
 
-                            if (!isset($dutiesCertificatesArr[$i]['certificate_created_at']) && empty($dutiesCertificatesArr[$i]['certificate_created_at'])) {
-                                return ResponseHandler::validationError(['certificate_created_at' => 'certificate_created_at field is required for adding certificate.']);
-                            }
-                            if (!isset($dutiesCertificatesArr[$i]['certificate_expires_at']) && empty($dutiesCertificatesArr[$i]['certificate_expires_at'])) {
-                                return ResponseHandler::validationError(['certificate_expires_at' => 'certificate_expires_at field is required for adding certificate.']);
-                            }
-
-
-                            $certificate_created_at = (!empty($dutiesCertificatesArr[$i]['certificate_created_at']) ? $dutiesCertificatesArr[$i]['certificate_created_at'] : $now->format('Y-m-d'));
-                            $certificate_expires_at = (!empty($dutiesCertificatesArr[$i]['certificate_expires_at']) ? $dutiesCertificatesArr[$i]['certificate_expires_at'] : (date('Y-m-d', strtotime($certificate_created_at . " +1 year"))));
+                            $certificate_created_at = $dutiesCertificatesArr[$i]['duty_started_at'];
+                            $certificate_expires_at = $dutiesCertificatesArr[$i]['duty_expires_at'];
                             $allowedfileExtension = ['pdf'];
                             $certificate = $request->file('duties')[$i]['certificate'];
                             $errors = [];
@@ -212,12 +218,12 @@ class EmployeesAPIController extends BaseController
 
                                 $response = EmployeesCertificates::create($employee_certificate);
                             } else {
-
+                                DB::rollBack();
                                 return ResponseHandler::validationError(['file_format' => 'invalid_file_format']);
                             }
                         }
                     } else {
-
+                        DB::rollBack();
                         return ResponseHandler::validationError(['duty_id' => 'duty_id not found.']);
                     }
                     // *** Add Certificate w.r.t employee duty ends ***
