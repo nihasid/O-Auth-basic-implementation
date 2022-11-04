@@ -258,17 +258,19 @@ class EmployeesAPIController extends BaseController
         if (empty($id) || $id == '' || $id == null) {
             return response()->json(['error' => 'Validation Error.', 'message' => 'employee id is required.'], 419);
         }
+       $employees = Employees::find($id);
         $employee_data = Employees::with(['company' => function ($query) {
             $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
                 ->where('status', 1);
         }, 'position' => function ($query) {
             $query->select('id', 'position_code', 'position_category', 'position_name')->where('status', 1);
-        }, 'duties' => function ($query) {
+        }, 'duties' => function($query) use($employees)  {
             $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')
                 ->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')
+                ->wherePivot('employees_id', $employees->id)
                 ->wherePivot('status', true);
-        }, 'certificates' => function ($query) {
-            $query->select('id', 'employees_id', 'duties_id',  'certificate', 'certificate_created_at', 'certificate_expires_at', 'status')->where('status', true)->orderBy('certificate_created_at');
+        }, 'certificates' => function($query) use($employees)  {
+            $query->select('id', 'employees_id', 'duties_id',  'certificate', 'certificate_created_at', 'certificate_expires_at', 'status')->where('employees_id', $employees->id)->where('status', true)->orderBy('certificate_created_at');
         }])->where('employees.is_active', 1)->find($id);
 
         return ResponseHandler::success($employee_data);

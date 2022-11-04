@@ -71,7 +71,7 @@ class DutiesAPIController extends BaseController
             return ResponseHandler::validationError(['company_id' => 'This employee does not belongs to any company.']);
         }
 
-        // try {
+        try {
 
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required',
@@ -122,7 +122,7 @@ class DutiesAPIController extends BaseController
 
         $employeeCertificate = [
             'employees_id' => $employeeDetail->employees_id,
-            // 'duties_id' => $employeeData->duty_id,
+            'duties_id' => $employeeDetail->duties_id,
             'status' => true
         ];
         if (isset($request->enrolled_started_date) && !empty($request->enrolled_started_date)) {
@@ -148,13 +148,13 @@ class DutiesAPIController extends BaseController
                 $certificateUrl  = UploadHelper::UploadFile($certificate, 'employees/certificates');
                 $employeeCertificate['certificate'] = $certificateUrl;
             } else {
-                DB::rollBack();
+
                 return ResponseHandler::validationError(['file_format' => 'invalid_file_format']);
             }
         }
         
         if (isset($employeeDetail) && !empty($employeeDetail->id) && $certificatesQuery->exists()) {
-            // DB::rollBack();
+
 
             $certificatesQuery = $certificatesQuery->first();
             $response = $certificatesQuery->whereId($certificatesQuery->id)->update($employeeCertificate);
@@ -174,18 +174,15 @@ class DutiesAPIController extends BaseController
             $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')->wherePivot('status', true);
         }, 'certificates' => function ($query) {
             $query->select('id', 'employees_id', 'duties_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->where('status', true)->orderBy('certificate_created_at');
-        }])
-            ->where('employees.is_active', 1)->find($employeeDetail->employees_id);
-
-
+        }])->where('employees.is_active', 1)->find($employeeDetail->employees_id);
 
         return ResponseHandler::success($data, $msg);
 
-        // } catch (\Exception $e) {
-        //     DB::rollBack();
-        //     return ResponseHandler::serverError($e);
-        // } finally {
-        //     DB::commit();
-        // }
+         } catch (\Exception $e) {
+             DB::rollBack();
+             return ResponseHandler::serverError($e);
+         } finally {
+             DB::commit();
+         }
     }
 }
