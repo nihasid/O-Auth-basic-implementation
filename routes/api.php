@@ -56,6 +56,11 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-user|standard-u
 
     // ******** Duties Routes *************
     Route::get('/duties', 'DutiesAPIController@index')->name('duties-get');
+    Route::get('/duty/{id}', 'DutiesAPIController@show')->name('duties-view');
+    Route::post('/duty/create-update', 'DutiesAPIController@storeUpdate')->name('duties-storeUpdate');
+    Route::delete('/duty/{id}/delete', 'DutiesAPIController@destroyDuty');
+   
+    // ******** Employees Duty Routes *************
     Route::post('/duties/create-update', 'DutiesAPIController@createUpdate')->name('duties-create-update');
     Route::delete('employee/{employeeId}/duties/{dutyId}/delete', 'DutiesAPIController@destroy')->name('duties-delete');
 

@@ -60,6 +60,11 @@ class Company extends Model
         return $this->belongsTo(User::class, 'company_id');
     }
 
+    public function duty()
+    {
+        return $this->hasMany(Duties::class, 'id', 'duties_id');
+    }
+
     static function deleteCompany($id)
     {
         $response = self::where('id', $id)->delete();

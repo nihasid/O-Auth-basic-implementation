@@ -24,6 +24,7 @@ class Duties extends Model
     protected $guarded = ['id'];
     protected $fillable = [
         'duty_type_group_name',
+        'company_id',
         'duty_group_detail',
         'duty_group_slug',
         'status'
@@ -50,6 +51,11 @@ class Duties extends Model
     public function employees()
     {
         return $this->belongsToMany(Employees::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 
     /*

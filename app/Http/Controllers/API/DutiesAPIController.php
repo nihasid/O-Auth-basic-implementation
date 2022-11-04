@@ -14,20 +14,156 @@ use DB;
 use Illuminate\Support\Facades\Auth;
 use Validator;
 use App\Helpers\UploadHelper;
+use App\Helpers\Constant;
+use DateTime;
 
 class DutiesAPIController extends BaseController
 {
     //
     public function index(Request $request)
     {
-        $dutiesData = Duties::getAllDuties();
-        $data = [
-            'count' => count($dutiesData),
-            'data'  => $dutiesData
-        ];
-        return ResponseHandler::success($data);
+         // DB::enableQueryLog();
+         try {
+            $duties = $count = Duties::with(['company' => function ($query) {
+                $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
+                    ->where('status', 1);
+            }])->where('status', true);
+
+            if (!Auth()->user()->hasRole('super-admin')) {
+                $company_id = Auth()->user()->company_id;
+                $duties->where('company_id', $company_id);
+            }
+            $duties->orderBy('created_at', 'desc');
+            $count = $count->get()->count();
+
+            $duties = $duties->simplePaginate(Constant::PAGINATION_LIMIT);
+            // dd(DB::getQueryLog());
+
+            $data = [
+                'count' => $count,
+                'data' => $duties
+            ];
+            return ResponseHandler::success($data, 200);
+        } catch (\Exception $e) {
+            return ResponseHandler::serverError($e);
+        }
     }
 
+    public function storeUpdate(request $request)
+    {
+        // save employee w.r.t company, duties, positions and certificates
+        $validator = Validator::make($request->all(), [
+            'duty_name' => 'required',
+            'duty_created_at' => 'date|date_format:Y-m-d',
+            'duty_ended_at' => 'date|date_format:Y-m-d'
+        ]);
+
+        $companyId = Auth()->user()->company_id;
+        if (empty($companyId) && !Auth()->user()->hasRole('super-admin')) {
+            return ResponseHandler::validationError(['company_id' => 'User does not belong to any company.']);
+        }
+
+        if ($validator->fails()) {
+            return $this->sendError('Validation Error.', $validator->errors());
+        }
+
+        try {
+
+            DB::beginTransaction();
+            $now = new DateTime();
+            $input = $request->all();
+            $op = 'create';
+
+            $dutyQuery= Duties::where(['company_id' => $companyId, 'status' => true])->where(DB::raw('lower(duty_type_group_name)'), strtolower($input['duty_name']));
+            // dd($dutyQuery->exists());
+            if ($dutyQuery->exists()) {
+                return ResponseHandler::success([], 'Duty with this name already exists.');
+            }
+
+            if ((isset($request->id) && !empty($request->id))) {
+                $dutyId = $request->id;
+                $op = 'update';
+            }
+
+            $dutyArr = [
+                'duty_type_group_name' => $input['duty_name'],
+                'status' => true,
+                'duty_group_slug' => str_replace(' ', '_', $input['duty_name'])
+            ];
+
+            if(isset($input['duty_description']) && !empty($input['duty_description'])) {
+                $dutyArr['duty_group_detail'] = $input['duty_description']; 
+            }
+            
+            $msg = '';
+
+            if ($op == 'create') {
+                $dutyArr['company_id'] = $companyId;
+
+                if (Duties::create($dutyArr)) {
+                    $msg = 'Duty has been added succesfully.';
+                }
+            }
+
+            if ($op == 'update') {
+
+                if (Duties::where(['id' => $dutyId, 'company_id' => $companyId, 'status' => true])->update($dutyArr)) {
+                    $msg = 'Duty has been updated succesfully.';
+                }
+            }
+
+            $res = Duties::where($dutyArr)->first();
+            
+            if ($res) {
+                return ResponseHandler::success($res, $msg);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
+        }
+    }
+
+    public function show($id)
+    {
+        //
+        if (empty($id) || $id == '' || $id == null) {
+            return ResponseHandler::validationError(['error' => 'Validation Error.', 'duty_id' => 'duty_id field is required.']);
+        }
+
+        $companyId = Auth()->user()->company_id;
+        
+        if($positionsDetail = Duties::with(['company' => function ($query) {
+            $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
+                ->where('status', 1);
+        }])->where(['company_id' => $companyId, 'status' => true])->find($id)) {
+            return ResponseHandler::success($positionsDetail);
+        } else {
+            return ResponseHandler::success([], 'Duty not found.');
+        }
+       
+    }
+
+
+    public function destroyDuty($id)
+    {
+        //
+        try {
+            $companyId = Auth()->user()->company_id;
+            if (Duties::whereId($id)->where('status', true)->exists()) {
+                if (Duties::whereId($id)->where('company_id', $companyId)->update(['status' => false])) {
+                    return ResponseHandler::success(['Duty has been deleted successfully']);
+                }
+            } else {
+                return ResponseHandler::validationError(['Duty not found']);
+            }
+        } catch (\Exception $e) {
+            return ResponseHandler::serverError($e);
+        }
+    }
+
+/* *** Employees duties API crud */
     public function destroy($employeeId, $employeeDutyId)
     {
         $companyId = Auth::user()->company_id;
