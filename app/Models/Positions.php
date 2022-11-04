@@ -22,7 +22,9 @@ class Positions extends Model
     // protected $primaryKey = 'id';
     // public $timestamps = false;
     protected $guarded = ['id'];
-    // protected $fillable = [];
+    protected $fillable = [
+        ''
+    ];
     // protected $hidden = [];
     // protected $dates = [];
 
@@ -46,6 +48,11 @@ class Positions extends Model
     public function employees()
     {
         return $this->belongsTo(Employees::class, 'position_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 
     /*
