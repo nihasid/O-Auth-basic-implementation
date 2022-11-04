@@ -46,14 +46,28 @@ class DutiesAPIController extends BaseController
             // }
 
             DB::beginTransaction();
-            if (DutiesEmployees::whereId($employeeDutyId)->exists()) {
+            $employeeDutyQuery = DutiesEmployees::whereId($employeeDutyId);
+            if ($employeeDutyQuery->exists()) {
+                $dutyId = $employeeDutyQuery->pluck('duties_id')->first();
 
+                $msg = '';
+                if (DutiesEmployees::whereId($employeeDutyId)->update(['status' => false])) {
+                    $msg .= 'Employee with this duty has been deleted';
+                    /* *** Certificate Deletion starts *** */
+                    $certificateQuery = EmployeesCertificates::where(['employees_id' => $employeeId, 'duties_id' => $dutyId, 'status' => true]);
+                    if ($certificateQuery->exists()) {
 
-                $response = DutiesEmployees::whereId($employeeDutyId)->update(['status' => false]);
+                        if ($certificateQuery->update(['status' => false])) {
+                            $msg .= " with certificate's";
+                        }
+                    }
 
-                if (isset($response) && !empty($response)) {
-                    return ResponseHandler::success([], 'Duty has been deleted successfully.');
+                    return ResponseHandler::success([], (!empty($msg) ? $msg.'.' : ''));
+                    /* *** Certificate Deletion ends *** */
                 }
+
+            } else {
+                return ResponseHandler::validationError(['duty_id' => 'Employee with this duty does not exists.']);
             }
         } catch (\Exception $e) {
             DB::rollBack();
@@ -73,116 +87,115 @@ class DutiesAPIController extends BaseController
 
         try {
 
-        $validator = Validator::make($request->all(), [
-            'employee_id' => 'required',
-            'duty_id' => 'required',
-            'enrolled_started_date' => 'date_format:Y-m-d',
-            'enrolled_ended_date' => 'date_format:Y-m-d'
-        ]);
+            $validator = Validator::make($request->all(), [
+                'employee_id' => 'required',
+                'duty_id' => 'required',
+                'enrolled_started_date' => 'date_format:Y-m-d',
+                'enrolled_ended_date' => 'date_format:Y-m-d'
+            ]);
 
-        if ($validator->fails()) {
-            return ResponseHandler::validationError($validator->errors());
-        }
+            if ($validator->fails()) {
+                return ResponseHandler::validationError($validator->errors());
+            }
 
-        if (!Employees::whereId($request->employee_id)->where('is_active', true)->exists()) {
-            return ResponseHandler::validationError(['employee_id' => 'Employee does not active.']);
-        }
+            if (!Employees::whereId($request->employee_id)->where('is_active', true)->exists()) {
+                return ResponseHandler::validationError(['employee_id' => 'Employee does not active.']);
+            }
 
-        if (!Duties::whereId($request->duty_id)->where('status', true)->exists()) {
-            return ResponseHandler::validationError(['duty_id' => 'Duty does not active.']);
-        }
+            if (!Duties::whereId($request->duty_id)->where('status', true)->exists()) {
+                return ResponseHandler::validationError(['duty_id' => 'Duty does not active.']);
+            }
 
-        DB::beginTransaction();
-        // *** update Duty
-        $storeDuty = [
-            'enrolled_date_started_at' => $request->enrolled_started_date,
-            'enrolled_date_ended_at' => $request->enrolled_ended_date,
-            'status' => true,
-            'company_id' => $companyId
-        ];
+            DB::beginTransaction();
+            // *** update Duty
+            $storeDuty = [
+                'enrolled_date_started_at' => $request->enrolled_started_date,
+                'enrolled_date_ended_at' => $request->enrolled_ended_date,
+                'status' => true,
+                'company_id' => $companyId
+            ];
 
-        $msg = '';
-        $empoyeeDuties = DutiesEmployees::where(['employees_id' => $request->employee_id, 'duties_id' => $request->duty_id]);
-        if ($empoyeeDuties->exists()) {
-            $employeeDetail = $empoyeeDuties->update($storeDuty);
-            $msg = 'Employee with this duty updated successfully.';
-        } else {
-            $storeDuty['employees_id'] = $request->employee_id;
-            $storeDuty['duties_id'] = $request->duty_id;
-
-            $employeeDetail = DutiesEmployees::create($storeDuty);
-            $msg = 'Employee successfully enrolled in the duty.';
-        }
-
-
-        // *** Certificate create/ update starts ***
-
-        $employeeDetail = DutiesEmployees::where($storeDuty)->select('id', 'employees_id', 'company_id', 'duties_id')->first();
-        $certificatesQuery = EmployeesCertificates::where(['employees_id' => $employeeDetail->employees_id, 'duties_id' => $employeeDetail->duties_id]);
-
-        $employeeCertificate = [
-            'employees_id' => $employeeDetail->employees_id,
-            'duties_id' => $employeeDetail->duties_id,
-            'status' => true
-        ];
-        if (isset($request->enrolled_started_date) && !empty($request->enrolled_started_date)) {
-
-            $employeeCertificate['certificate_created_at'] = $request->enrolled_started_date;
-        }
-
-        if (isset($request->enrolled_ended_date) && !empty($request->enrolled_ended_date)) {
-            $employeeCertificate['certificate_expires_at'] = $request->enrolled_ended_date;
-        }
-
-        if ($employeeDetail && !empty($request->file('certificate'))) {
-            $allowedfileExtension = ['pdf'];
-            $certificate = $request->file('certificate');
-
-
-
-            if ($allowedfileExtension) {
-
-                $fileName = time() . '.' . $certificate->extension();
-                $type = $certificate->getClientMimeType();
-                $size = $certificate->getSize();
-                $certificateUrl  = UploadHelper::UploadFile($certificate, 'employees/certificates');
-                $employeeCertificate['certificate'] = $certificateUrl;
+            $msg = '';
+            $empoyeeDuties = DutiesEmployees::where(['employees_id' => $request->employee_id, 'duties_id' => $request->duty_id]);
+            if ($empoyeeDuties->exists()) {
+                $employeeDetail = $empoyeeDuties->update($storeDuty);
+                $msg = 'Employee with this duty updated successfully.';
             } else {
+                $storeDuty['employees_id'] = $request->employee_id;
+                $storeDuty['duties_id'] = $request->duty_id;
 
-                return ResponseHandler::validationError(['file_format' => 'invalid_file_format']);
+                $employeeDetail = DutiesEmployees::create($storeDuty);
+                $msg = 'Employee successfully enrolled in the duty.';
             }
-        }
-        
-        if (isset($employeeDetail) && !empty($employeeDetail->id) && $certificatesQuery->exists()) {
 
 
-            $certificatesQuery = $certificatesQuery->first();
-            $response = $certificatesQuery->whereId($certificatesQuery->id)->update($employeeCertificate);
-        } else {
-            if (!empty($request->file('certificate'))) {
-                $response = EmployeesCertificates::create($employeeCertificate);
+            // *** Certificate create/ update starts ***
+
+            $employeeDetail = DutiesEmployees::where($storeDuty)->select('id', 'employees_id', 'company_id', 'duties_id')->first();
+            $certificatesQuery = EmployeesCertificates::where(['employees_id' => $employeeDetail->employees_id, 'duties_id' => $employeeDetail->duties_id]);
+
+            $employeeCertificate = [
+                'employees_id' => $employeeDetail->employees_id,
+                'duties_id' => $employeeDetail->duties_id,
+                'status' => true
+            ];
+            if (isset($request->enrolled_started_date) && !empty($request->enrolled_started_date)) {
+
+                $employeeCertificate['certificate_created_at'] = $request->enrolled_started_date;
             }
+
+            if (isset($request->enrolled_ended_date) && !empty($request->enrolled_ended_date)) {
+                $employeeCertificate['certificate_expires_at'] = $request->enrolled_ended_date;
+            }
+
+            if ($employeeDetail && !empty($request->file('certificate'))) {
+                $allowedfileExtension = ['pdf'];
+                $certificate = $request->file('certificate');
+
+
+
+                if ($allowedfileExtension) {
+
+                    $fileName = time() . '.' . $certificate->extension();
+                    $type = $certificate->getClientMimeType();
+                    $size = $certificate->getSize();
+                    $certificateUrl  = UploadHelper::UploadFile($certificate, 'employees/certificates');
+                    $employeeCertificate['certificate'] = $certificateUrl;
+                } else {
+
+                    return ResponseHandler::validationError(['file_format' => 'invalid_file_format']);
+                }
+            }
+
+            if (isset($employeeDetail) && !empty($employeeDetail->id) && $certificatesQuery->exists()) {
+
+
+                $certificatesQuery = $certificatesQuery->first();
+                $response = $certificatesQuery->whereId($certificatesQuery->id)->update($employeeCertificate);
+            } else {
+                if (!empty($request->file('certificate'))) {
+                    $response = EmployeesCertificates::create($employeeCertificate);
+                }
+            }
+
+
+            // *** Certificate create/ update ends ***
+
+            $data = Employees::with(['company' => function ($query) {
+                $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
+                    ->where('status', 1);
+            }, 'duties' => function ($query) {
+                $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')->wherePivot('status', true);
+            }, 'certificates' => function ($query) {
+                $query->select('id', 'employees_id', 'duties_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->where('status', true)->orderBy('certificate_created_at');
+            }])->where('employees.is_active', 1)->find($employeeDetail->employees_id);
+
+            return ResponseHandler::success($data, $msg);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseHandler::serverError($e);
+        } finally {
+            DB::commit();
         }
-
-
-        // *** Certificate create/ update ends ***
-
-        $data = Employees::with(['company' => function ($query) {
-            $query->select('id', 'business_type', 'company_name', 'company_department', 'company_started_at', 'company_ended_at')
-                ->where('status', 1);
-        }, 'duties' => function ($query) {
-            $query->select('duties.id', 'duty_type_group', 'duty_type_group_name', 'duty_group_detail')->withPivot('id', 'enrolled_date_started_at', 'enrolled_date_ended_at')->wherePivot('status', true);
-        }, 'certificates' => function ($query) {
-            $query->select('id', 'employees_id', 'duties_id', 'certificate', 'certificate_created_at', 'certificate_expires_at')->where('status', true)->orderBy('certificate_created_at');
-        }])->where('employees.is_active', 1)->find($employeeDetail->employees_id);
-
-        return ResponseHandler::success($data, $msg);
-
-         } catch (\Exception $e) {
-             DB::rollBack();
-             return ResponseHandler::serverError($e);
-         } finally {
-             DB::commit();
-         }
     }
 }
