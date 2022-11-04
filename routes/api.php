@@ -49,6 +49,10 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-user|standard-u
 
     // ******** Positions Routes *************
     Route::get('/positions', 'PositionsController@index')->name('positions-get');
+    Route::get('/position/{id}', 'PositionsController@show')->name('positions-view');
+    Route::post('/position/create-update', 'PositionsController@storeUpdate')->name('positions-create-update');
+    Route::delete('/position/{id}/delete', 'PositionsController@destroy');
+   
 
     // ******** Duties Routes *************
     Route::get('/duties', 'DutiesAPIController@index')->name('duties-get');
@@ -62,7 +66,7 @@ Route::group(['middleware' => ['auth:api', 'role:super-admin|pro-user|standard-u
     Route::post('/employee/certificate/update', 'EmployeesAPIController@updateCertificate')->name('cert-update');
     Route::delete('employee/{employeeId}/certificates/{certificateId}/delete', 'EmployeesAPIController@destroyCertificate')->name('cert-delete');
 
-    // ******** Duties Routes *************
+    // ******** Roles Routes *************
     Route::get('/roles', 'UserAPIController@getAllRoles')->name('roles-get');
 
 

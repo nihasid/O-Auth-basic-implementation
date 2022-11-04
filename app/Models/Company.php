@@ -45,6 +45,11 @@ class Company extends Model
     |--------------------------------------------------------------------------
     */
 
+    public function position()
+    {
+        return $this->hasMany(Positions::class, 'id', 'position_id');
+    }
+
     public function employees()
     {
         return $this->hasMany(Employees::class, 'company_id');
