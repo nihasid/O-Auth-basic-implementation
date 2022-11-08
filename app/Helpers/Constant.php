@@ -88,16 +88,17 @@ class Constant
     ];
 
     const EMAIL_SUBJECT = [
-        'notification' => 'Reminder to register employee in duty',
+        'notification' => 'Reminder to register employee in atleast 1 training',
         'invitation' => 'Invitation email'
     ];
 
     const PAGINATION_LIMIT = 10;
     const SHARED_TABLES = [
-        'employees',
-        'companies',
-        'invitations'
+        'employees' => 'employees',
+        'companies' => 'companies',
+        'invitations' => 'invitations'
     ];
+
 
 }
 

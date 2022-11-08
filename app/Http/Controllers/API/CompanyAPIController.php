@@ -12,10 +12,12 @@ use App\Models\Company;
 use App\Models\Users;
 use App\Helpers\ResponseHandler;
 use App\Models\DutiesEmployees;
+use App\Models\Notifications;
 use Validator;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\WelcomeMail;
 use Illuminate\Http\Response;
+use Carbon\Carbon;
 
 class CompanyAPIController extends BaseController
 {
@@ -141,18 +143,33 @@ class CompanyAPIController extends BaseController
         $senderEmail = 'notification';
         $allCompanies = Company::withCount('employees')->where('status', true)->get();
         if ($allCompanies) {
-            $companyIds = $allCompanies->where('employees_count', '>=', 10)->pluck('id')->toArray();
+            $companyIds = $allCompanies->where('employees_count', '>=', 1)->pluck('id')->toArray();
+            echo json_encode($companyIds);
             if ($companyIds && count($companyIds) > 0) {
                 $companyIdsInDuties = DutiesEmployees::where('id', '!=', '')->where('company_id', '!=', '')->whereIn('company_id', $companyIds)->pluck('company_id')->toArray();
+               
                 $companyIdsInDuties = array_diff($companyIds, $companyIdsInDuties);
+                
                 if (isset($companyIdsInDuties) && count($companyIdsInDuties) > 0) {
-                    $userEmailToSend = Users::whereIn('company_id', $companyIdsInDuties)->pluck('email', 'company_id')->toArray();
-                   
+                    $userEmailToSend = Users::whereIn('company_id', $companyIdsInDuties)->select('email', 'id', 'company_id')->get()->toArray();
+                    
                     if (is_array($userEmailToSend) && count($userEmailToSend) > 0) {
-                        foreach ($userEmailToSend as $companyId => $userEmail) {
+                        foreach ($userEmailToSend as $key => $value) {
+                            $notificationData = [
+                                'companies_id' => $value['company_id'],
+                                'users_id' => $value['id'],
+                                'notification_title' => Constant::EMAIL_SUBJECT['notification'],
+                                'status' => true,
+                                'notification_status' => true
+                            ];
+                            $userEmail = $value['email'];
                             if ($this->mailSend($userEmail, $senderEmail)) {
-                                array_push($sentEmailPusher, $companyId);
+                                $notificationData['email_sent_status'] = true;
+                                array_push($sentEmailPusher, $value['company_id']);
                             }
+                            Notifications::create($notificationData);
+
+
                         }
                     }
                 }
@@ -173,6 +190,63 @@ class CompanyAPIController extends BaseController
 
     }
 
+    // public function getEmployeeDutyExpiryCount()
+    // {
+    //     $now = Carbon::now();
+    //     $week = Carbon::now()->addWeek();
+    //     $month=Carbon::now()->addMonth();
+
+    //     $sentEmailPusher = [];
+    //     $senderEmail = 'notification';
+    //     $allCompanies = Company::withCount('employees')->where('status', true)->get();
+    //     if ($allCompanies) {
+    //         $companyIds = $allCompanies->where('employees_count', '>=', 1)->pluck('id')->toArray();
+    //         echo json_encode($companyIds);
+    //         if ($companyIds && count($companyIds) > 0) {
+    //             $companyIdsInDuties = DutiesEmployees::where('id', '!=', '')->where('company_id', '!=', '')->where('enrolled_date_ended_at', "<", $week)->whereIn('company_id', $companyIds)->select('company_id', 'employees_id')->get()->toArray();
+    //            dd($companyIdsInDuties);
+    //             $companyIdsInDuties = array_diff($companyIds, $companyIdsInDuties);
+                
+    //             if (isset($companyIdsInDuties) && count($companyIdsInDuties) > 0) {
+    //                 $userEmailToSend = Users::whereIn('company_id', $companyIdsInDuties)->select('email', 'id', 'company_id')->get()->toArray();
+                    
+    //                 if (is_array($userEmailToSend) && count($userEmailToSend) > 0) {
+    //                     foreach ($userEmailToSend as $key => $value) {
+    //                         $notificationData = [
+    //                             'companies_id' => $value['company_id'],
+    //                             'users_id' => $value['id'],
+    //                             'notification_title' => Constant::EMAIL_SUBJECT['notification'],
+    //                             'status' => true,
+    //                             'notification_status' => true
+    //                         ];
+    //                         $userEmail = $value['email'];
+    //                         if ($this->mailSend($userEmail, $senderEmail)) {
+    //                             $notificationData['email_sent_status'] = true;
+    //                             array_push($sentEmailPusher, $value['company_id']);
+    //                         }
+    //                         Notifications::create($notificationData);
+
+
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     if(isset($companyIdsInDuties) && count($companyIdsInDuties) > 0 && empty( array_diff($sentEmailPusher, $companyIdsInDuties))) {
+    //         exit('Email sent to All companies whose employees are above 20!');
+    //     }
+
+    //     if (isset($companyIdsInDuties) && count($companyIdsInDuties) > 0 && !empty($emailNotSentToCompanies = array_diff($sentEmailPusher, $companyIdsInDuties))) {
+    //         // dd($emailNotSentToCompanies);
+            
+    //         exit('Email sent to All companies except ' . json_encode($emailNotSentToCompanies));
+    //     } 
+
+    //     exit('No company found !');
+
+    // }
+
     public function mailSend($email, $senderEmail)
     {
         // $email = 'mail@hotmail.com';
@@ -189,4 +263,6 @@ class CompanyAPIController extends BaseController
             'message' => 'Mail has sent.'
         ], Response::HTTP_OK);
     }
+
+    
 }

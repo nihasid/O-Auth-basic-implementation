@@ -13,9 +13,13 @@ use App\Models\Company;
 use App\Models\Roles;
 use App\Helpers\ResponseHandler;
 use App\Models\Duties;
+use App\Models\Employees;
+use App\Models\Notifications;
+use App\Models\ShareData;
 use App\Models\Positions;
 use File;
 use Validator;
+use Illuminate\Support\Facades\Auth;
 use DateTime;
 
 class UserAPIController extends BaseController
@@ -119,15 +123,30 @@ class UserAPIController extends BaseController
     }
 
     public function getdashboardData() {
+        $companyId = Auth()->user()->company_id;
+        $userId = Auth()->user()->id;
+        $notifications = [];
+        /* **Notifications starts */
+        $notificationsQuery = Notifications::select('id', 'companies_id', 'notification_title', 'notification_status')->where([ 'companies_id' => $companyId, 'status' => true, 'notification_status' => true]);
+        if($notificationsQuery->count() > 0) {
+            $notifications['count'] = $notificationsQuery->count();
+            $notifications['data'] = $notificationsQuery->get()->toArray();
+        }
+        /* **Notifications ends */
+        
+        
+        // dd(ShareData::select('table_name', 'table_column_fields', 'company_id')->get()->toArray());
         $roles = Roles::getAllRoles();
-        $positions = Positions::getAllPositions();
-        $duties = Duties::getAllDuties();
+        $companyId = Auth()->user()->company_id;
+        $positions = Positions::getAllPositions($companyId);
+        $duties = Duties::getAllDuties($companyId);
         
         $data = [
             // 'count' => count($rolesData),
             // 'roles' => $roles,
             'positions' => $positions,
-            'duties' => $duties
+            'duties' => $duties,
+            'notifications' => $notifications
         ];
         return ResponseHandler::success($data);
     }

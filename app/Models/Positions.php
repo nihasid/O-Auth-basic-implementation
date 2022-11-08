@@ -23,7 +23,14 @@ class Positions extends Model
     // public $timestamps = false;
     protected $guarded = ['id'];
     protected $fillable = [
-        ''
+        'company_id',
+        'position_code',
+        'position_category',
+        'position_name',
+        'position_created_at',
+        'position_ended_at',
+        'status',
+        'is_share'
     ];
     // protected $hidden = [];
     // protected $dates = [];
@@ -72,7 +79,11 @@ class Positions extends Model
     | MUTATORS
     |--------------------------------------------------------------------------
     */
-    static function getAllPositions() {
-        return Positions::where('status', true)->select('id', 'position_category', 'position_name')->get()->toArray();
+    static function getAllPositions($companyId = '') {
+        $positions = Positions::where('status', true)->select('id', 'position_category', 'position_name');
+        if($companyId && !empty($companyId)) {
+            $positions = $positions->where('company_id', $companyId);
+        }
+        return $positions->get()->toArray();
     }
 }

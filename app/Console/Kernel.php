@@ -15,7 +15,8 @@ class Kernel extends ConsoleKernel
      */
 
     protected $commands = [    
-            'App\Console\Commands\CompanyNotRegisteredInDutyCron'
+            'App\Console\Commands\CompanyNotRegisteredInDutyCron',
+            'App\Console\Commands\EmployeesDutyExpiryCron'
     ];
 
     protected function schedule(Schedule $schedule)
