@@ -27,7 +27,7 @@ class RegisterController extends BaseController
         $validator = Validator::make($request->all(), [
             'contact_username' => 'required',
             // 'last_name' => 'required',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required|email',
             'date_of_birth' => 'date_format:Y-m-d',
             'password' => 'required|min:6|regex:/^.*(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[\d\x])(?=.*[!$#%]).*$/',
             // 'c_password' => 'required|same:password',
@@ -62,6 +62,10 @@ class RegisterController extends BaseController
         if (!isset($company) && empty($company)) {
 
             $company = Company::create($companyInputData);
+        } else {
+            if(Users::where(['email' => $request->email, 'company_id' => $company->id, 'is_active' => true])->exists()) {
+                return ResponseHandler::validationError(['User with this email already exists.']);
+            }
         }
 
         if (isset($company) && !empty($company)) {

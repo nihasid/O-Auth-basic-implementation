@@ -84,8 +84,8 @@ class EmployeesAPIController extends BaseController
                 'gender' => 'required',
                 'date_of_birth' => 'required|date_format:Y-m-d',
                 'position_id' => 'required',
-                'emp_started_period' => 'date|date_format:Y-m-d|nullable',
-                'emp_ended_period' => 'date|date_format:Y-m-d|nullable',
+                'emp_started_period' => 'date|date_format:Y-m-d',
+                'emp_ended_period' => 'date|date_format:Y-m-d',
                 'certificate_created_at' => 'date_format:Y-m-d',
                 'certificate_expires_at' => 'date_format:Y-m-d',
                 'enrolled_date_started' => 'date_format:Y-m-d|nullable',
@@ -127,8 +127,13 @@ class EmployeesAPIController extends BaseController
                 'date_of_birth' => $request->date_of_birth,
                 'company_id' => ($request->company_id) ? $request->company_id : $company_id,
                 'position_id' => $request->position_id,
-                'is_active' => ($request->is_active) ? $request->is_active : true
-            ]);;
+                'is_active' => ($request->is_active) ? $request->is_active : true,
+                'emp_started_period' => ($request->emp_started_period)?$request->emp_started_period:'',
+                'emp_ended_period' => ($request->emp_ended_period)?$request->emp_ended_period:''
+            ]);
+          
+        
+            
             $employee_id = $employee_data->id;
             $emp_company_id = $employee_data->id;
             // *** Emaployee data Store ends ***
@@ -288,32 +293,21 @@ class EmployeesAPIController extends BaseController
 
         try {
             //
-            $validator = Validator::make($request->all(), [
+            $validatorError = Validator::make($request->all(), [
                 'employee_id' => 'required',
-                // 'first_name' => 'required',
-                // 'last_name' => 'required',
                 'email' => 'email',
-                // 'gender' => 'required',
                 'date_of_birth' => 'date_format:Y-m-d',
-                // 'position_id' => 'required',
-                // 'duty_id' => 'required',
                 'emp_started_period' => 'date|date_format:Y-m-d',
-                'emp_ended_period' => 'date|date_format:Y-m-d',
-                // 'certificate_created_at' => 'date_format:Y-m-d',
-                // 'certificate_expires_at' => 'required|date_format:Y-m-d',
-                // 'enrolled_date_started' => 'date_format:Y-m-d|nullable',
-                // 'enrolled_date_ended' => 'date_format:Y-m-d|nullable',
-                // 'duty_started_at' => 'required|date_format:Y-m-d',
-                // 'duty_expires_at' => 'date_format:Y-m-d',
-                // 'certificates' => 'mimes:pdf'
+                'emp_ended_period' => 'date|date_format:Y-m-d'
             ]);
 
-            if ($validator->fails()) {
-                return $this->sendError('Validation Error.', $validator->errors());
+            if ($validatorError->fails()) {
+        
+                return ResponseHandler::validationError($validatorError->errors());
             }
-
+            $companyId = Auth()->user()->company_id;
             $now = new DateTime();
-            if (Employees::where('email', '=', $request->email)->where('id', '!=', $employee->id)->exists()) {
+            if (Employees::where('email', '=', $request->email)->where('id', '!=', $request->employee_id)->where('company_id', $companyId)->where('is_active', true)->exists()) {
                 return ResponseHandler::validationError(['Employee with this email address already exists.']);
             }
 
@@ -329,31 +323,43 @@ class EmployeesAPIController extends BaseController
 
 
             $duty_expires_at = (isset($request->duty_expires_at) ? $request->duty_expires_at : '');
-            $employee_array = [
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'email' => $request->email,
-                'gender' => $request->gender,
-                'date_of_birth' => $request->date_of_birth,
-                //'company_id' => $request->company_id,
-                'position_id' => $request->position_id,
-                'emp_started_period' => $request->emp_started_period,
-                // 'employee_ended_date' => $request->employee_ended_date,
-                //'certificate_created_at => $request->certificate_created_at,
+            // $employee_array = [
+                
+            //     'gender' => $request->gender,
+            //     'date_of_birth' => $request->date_of_birth,
+            //     //'company_id' => $request->company_id,
+                
+            //     'emp_started_period' => $request->emp_started_period,
+            //     // 'employee_ended_date' => $request->employee_ended_date,
+            //     //'certificate_created_at => $request->certificate_created_at,
 
-            ];
+            // ];
+            // if( isset($request->position_id) && !empty($request->position_id)) {
+            //     $employee_array['position_id'] = $request->position_id;
+            // }
+
+            // if( isset($request->first_name) && !empty($request->first_name)) {
+            //     $employee_array['first_name'] = $request->first_name;
+            // }
+
+            // if( isset($request->last_name) && !empty($request->last_name)) {
+            //     $employee_array['last_name'] = $request->last_name;
+            // }
+
+            // if( isset($request->email) && !empty($request->email)) {
+            //     $employee_array['email'] = $request->email;
+            // }
+
+            // if( isset($request->email) && !empty($request->email)) {
+            //     $employee_array['email'] = $request->email;
+            // }
+
             $input = $request->all();
             unset($input['employee_id']);
 
-            $employee_data = $employee->whereId($employee->id)->update($input);
+            $employee_data = $employee->whereId($employee->id)->update($input);       
 
-            // $duties_employees = DutiesEmployees::where('employee_id', $employee->id)->update([
-            //     'duties_id' => $request->duty_id,
-            //     'enrolled_date_started_at' => $request->duty_started_at,
-            //     'enrolled_date_ended_at' => $duty_expires_at
-            // ]);
-
-            if (isset($request->duty_id) && !empty($request->duty_id) && empty($request->duty_expires_at)) {
+            if (isset($request->duty_id) && !empty($request->duty_id) ) {
                 if ($is_duty_exists = Duties::whereId($request->duty_id)->exists()) {
                     $duty_slug = Duties::whereId($request->duty_id)->pluck('duty_group_slug');
 
@@ -372,14 +378,13 @@ class EmployeesAPIController extends BaseController
                     DB::rollBack();
                     return ResponseHandler::validationError(['Duty not found']);
                 }
+                $duties_employees = DutiesEmployees::where('employees_id', $employee->id)->update([
+                    'duties_id' => $request->duty_id,
+                    'company_id'    => $employee->company_id,
+                    'enrolled_date_started_at' => $request->duty_started_at,
+                    'enrolled_date_ended_at' => $duty_expires_at
+                ]);
             }
-
-            $duties_employees = DutiesEmployees::where('employees_id', $employee->id)->update([
-                'duties_id' => $request->duty_id,
-                'company_id'    => $employee->company_id,
-                'enrolled_date_started_at' => $request->duty_started_at,
-                'enrolled_date_ended_at' => $duty_expires_at
-            ]);
 
 
             if (isset($employee->id) && !empty($employee->id) && !empty($request->file('certificates'))) {

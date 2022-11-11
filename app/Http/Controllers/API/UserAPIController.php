@@ -78,8 +78,9 @@ class UserAPIController extends BaseController
     public function update(Request $request, $id)
     {
         $user = Users::find($id);
+        $companyId = Auth()->user()->company_id;
         try {
-            if (Users::where('email', '=', $request->email)->where('id', '!=', $id)->exists()) {
+            if (isset($request->email) && $request->email != '' && (Users::where('email', '=', $request->email)->where('id', '!=', $id)->where('company_id', $companyId)->where('is_active', true)->exists())) {
                 return ResponseHandler::validationError(['User with this email address already exists.']);
             }
 

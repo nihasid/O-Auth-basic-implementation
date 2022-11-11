@@ -74,15 +74,22 @@ class DutiesAPIController extends BaseController
             $input = $request->all();
             $op = 'create';
 
-            $dutyQuery= Duties::where(['company_id' => $companyId, 'status' => true])->where(DB::raw('lower(duty_type_group_name)'), strtolower($input['duty_name']));
-            // dd($dutyQuery->exists());
-            if ($dutyQuery->exists()) {
-                return ResponseHandler::success([], 'Duty with this name already exists.');
-            }
+            
 
             if ((isset($request->id) && !empty($request->id))) {
+                $dutyQuery= Duties::where(['company_id' => $companyId, 'status' => true])->where('id', '!=', $request->id)->where(DB::raw('lower(duty_type_group_name)'), strtolower($input['duty_name']));
+            
+                if ($dutyQuery->exists()) {
+                    return ResponseHandler::validationError(['error' => 'Duty with this name already exists.']);
+                }
                 $dutyId = $request->id;
                 $op = 'update';
+            } else {
+                $dutyQuery= Duties::where(['company_id' => $companyId, 'status' => true])->where(DB::raw('lower(duty_type_group_name)'), strtolower($input['duty_name']));
+                
+                if ($dutyQuery->exists()) {
+                    return ResponseHandler::validationError(['error' => 'Duty with this name already exists.']);
+                }
             }
 
             $dutyArr = [

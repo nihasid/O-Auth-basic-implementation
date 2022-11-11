@@ -69,14 +69,18 @@ class PositionsController extends BaseController
             $input = $request->all();
             $op = 'create';
 
-            $positionExists = Positions::where(['company_id' => $companyId, 'status' => true])->where(DB::raw('lower(position_name)'), strtolower($input['position_name']));
-            if ($positionExists->exists()) {
-                return ResponseHandler::success([], 'Position with this name already exists.');
-            }
-
             if ((isset($request->id) && !empty($request->id))) {
+                $positionExists = Positions::where('id', '!=', $request->id)->where(['company_id' => $companyId, 'status' => true])->where(DB::raw('lower(position_name)'), strtolower($input['position_name']));
+                if ($positionExists->exists()) {
+                    return ResponseHandler::success([], 'Position with this name already exists.');
+                }
                 $positionId = $request->id;
                 $op = 'update';
+            } else {
+                $positionExists = Positions::where(['company_id' => $companyId, 'status' => true])->where(DB::raw('lower(position_name)'), strtolower($input['position_name']));
+                if ($positionExists->exists()) {
+                    return ResponseHandler::success([], 'Position with this name already exists.');
+                }
             }
 
             $positionArr = [
