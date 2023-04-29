@@ -25,9 +25,7 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
             $table->string('thumbnail', 191)->nullable();
-            $table->uuid('company_id')->nullable();
 			$table->integer('updated_by')->nullable();
-            $table->foreign('company_id', 'users_company_id_foreign')->references('id')->on('companies');
         });
     }
 

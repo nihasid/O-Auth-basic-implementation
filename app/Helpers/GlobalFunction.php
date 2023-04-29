@@ -12,15 +12,15 @@ use Illuminate\Http\Response;
 
 class GlobalFunction
 {
-    static function sendEmail($emailType, $title = '', $emailData = [], $recieverEmail, $senderEmail = 'no-reply@fasi.app')
+    static function sendEmail($subject = '', $title = '', $emailData = [], $recieverEmail = '', $senderEmail = 'no-reply@fasi.app')
     {
 
         try {
 
             $appEnv = \Illuminate\Support\Facades\App::environment();
-            $subject = Constant::EMAIL_SUBJECT[$emailType];
+            // $subject = Constant::EMAIL_SUBJECT[$emailType];
             $mailInfo = [
-                'title' => (isset($title) && !empty($title)) ? $title : Constant::EMAIL_SUBJECT[$emailType],
+                'title' => (isset($title) && !empty($title)) ? $title : Constant::EMAIL_SUBJECT[$emailData['emailType']],
                 'email_message' => (isset($emailData) && array_key_exists('email_message', $emailData)) ? $emailData['email_message'] : ''
             ];
 

@@ -18,7 +18,7 @@ use App\Http\Controllers\API\CompanyAPIController;
 */
 
 
-Route::get('/test', 'CompanyAPIController@getCompanyWithEmployeesCount');
+Route::get('/test', 'InvitationController@testEmailSend');
 Route::get('/invitations', 'InvitationController@getAllInvites');
 
 

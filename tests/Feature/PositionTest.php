@@ -6,18 +6,17 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\WithoutMiddleware;
 
-class ExampleTest extends TestCase
+class PositionTest extends TestCase
 {
     use WithoutMiddleware;
     /**
-     * A basic test example.
+     * A basic feature test example.
      *
      * @return void
      */
-    public function test_the_application_returns_a_successful_response()
+    public function test_example()
     {
         $response = $this->get('/api/positions');
-
         $response->assertStatus(200);
     }
 }

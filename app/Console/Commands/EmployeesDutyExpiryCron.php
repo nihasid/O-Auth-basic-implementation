@@ -29,7 +29,7 @@ class EmployeesDutyExpiryCron extends Command
     public function handle()
     {
         $companyController = new CompanyAPIController();
-        // $companyController->getEmployeeDutyExpiryCount();
+        $companyController->getEmployeeDutyExpiryCount();
         return Command::SUCCESS;
     }
 }

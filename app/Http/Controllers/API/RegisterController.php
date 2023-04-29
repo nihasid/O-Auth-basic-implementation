@@ -8,8 +8,6 @@ use App\Models\Users;
 use App\Helpers\ResponseHandler;
 use Laravel\Passport\HasApiTokens;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Roles;
-use App\Models\Company;
 use Hash;
 use DB;
 use Validator;
@@ -25,15 +23,12 @@ class RegisterController extends BaseController
     {
         
         $validator = Validator::make($request->all(), [
-            'contact_username' => 'required',
+            'username' => 'required',
             // 'last_name' => 'required',
             'email' => 'required|email',
             'date_of_birth' => 'date_format:Y-m-d',
             'password' => 'required|min:6|regex:/^.*(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[\d\x])(?=.*[!$#%]).*$/',
-            // 'c_password' => 'required|same:password',
-            'role' => 'required',
-            'company_name' => 'required',
-            'business_type' => 'required'
+            'c_password' => 'required|same:password'
         ]);
 
         if ($validator->fails()) {
@@ -45,46 +40,20 @@ class RegisterController extends BaseController
 
         $input = $request->all();
 
-        $companyInputData = [
-            'company_name' => $input['company_name'],
-            'company_ceo_name' => $input['company_ceo_name'],
-            'business_type' => $input['business_type'],
-            'name' => $input['contact_username'],
+        $userData = [
+            'name' => $input['username'],
             'email' => $input['email'],
             'password' => $input['password'],
             'is_active' => true,
             'status' => true,
         ];
 
-       
-        $company = Company::where('company_name', $input['company_name'])->where('business_type', $input['business_type'])->first();
-
-        if (!isset($company) && empty($company)) {
-
-            $company = Company::create($companyInputData);
-        } else {
-            if(Users::where(['email' => $request->email, 'company_id' => $company->id, 'is_active' => true])->exists()) {
-                return ResponseHandler::validationError(['User with this email already exists.']);
-            }
-        }
-
-        if (isset($company) && !empty($company)) {
-            $companyInputData['company_id'] = $company->id;
-            $user = Users::create($companyInputData);
-            if (Roles::where('name', $request->role)->exists()) {
-                $assign_role = $user->assignRole($request->role);
-            } else {
-                DB::rollBack();
-                return ResponseHandler::validationError(['undefined role!']);
-            }
+            $user = Users::create($userData);
 
             $success['token'] =  $user->createToken($user['id'])->accessToken;
             $success['data'] =  $user;
 
             return ResponseHandler::success($success);
-        } else {
-            return ResponseHandler::validationError(['company not registered.']);
-        }
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -119,12 +88,12 @@ class RegisterController extends BaseController
                     // if (Auth::guard('web')->attempt(['email' => $request->email, 'password' => $request->password])) {
                     DB::beginTransaction();
                     // $user = Auth::user();
-                    $user_data = $user->load(['roles', 'company' => function ($query) {
-                        $query->select('id', 'company_name');
-                    }]);
+                    // $user_data = $user->load(['roles', 'company' => function ($query) {
+                    //     $query->select('id', 'company_name');
+                    // }]);
 
                     $data['token'] =  $user->createToken($user->id)->accessToken;
-                    $data['data'] = $user_data;
+                    // $data['data'] = $user_data;
 
                     return ResponseHandler::success($data);
                 } else {
