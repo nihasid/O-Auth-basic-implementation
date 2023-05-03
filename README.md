@@ -41,6 +41,15 @@ Run commands:
 - **(./vendor/bin/sail artisan migrate) to import tables in DB**
 - **(./vendor/bin/sail artisan passport:install) to install OAUTH**
 - **(./vendor/bin/sail artisan passport:client --personal) for token generation**
+
+### Installing Composer Dependencies For Existing Applications
+This command uses a small Docker container containing PHP and Composer to install the application's dependencies:
+docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -v $(pwd):/var/www/html \
+    -w /var/www/html \
+    laravelsail/php81-composer:latest \
+    composer install --ignore-platform-reqs
 Ready to use. Enjoy!
 
 ## Contributing
