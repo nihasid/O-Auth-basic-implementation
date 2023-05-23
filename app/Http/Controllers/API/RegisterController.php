@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Hash;
 use DB;
 use Validator;
+use Illuminate\Support\Facades\Redis;
+use App\Events\LoginHistory;
+// use App\Http\Requests\CreateRegisterAPIRequest;
 
 class RegisterController extends BaseController
 {
@@ -84,6 +87,9 @@ class RegisterController extends BaseController
             $user = Users::where(["email" => $request->email, 'is_active' => true])->first();
 
             if ($user) {
+                
+                event(new LoginHistory($user));
+
                 if (Hash::check($request->password, $user->password)) {
                     // if (Auth::guard('web')->attempt(['email' => $request->email, 'password' => $request->password])) {
                     DB::beginTransaction();
@@ -112,9 +118,13 @@ class RegisterController extends BaseController
 
     public function getAllUsers(Request $request)
     {
-        if (!$users = Users::with('roles')->get()) {
+        
+        if (!$users = Users::get()) {
             throw new NotFoundHttpException('Users not found');
         }
+
+        Redis::set('users', $users);
+        dd(Redis::get('users'));
         return $users;
     }
 }
